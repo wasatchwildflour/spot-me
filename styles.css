@@ -286,6 +286,17 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabs) + var(--sab) + 16px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:50;font-size:.92rem;max-width:calc(100% - 32px)}
 .pr-flag{color:var(--g);font-weight:700;font-size:.8rem;letter-spacing:.05em;text-transform:uppercase}
 .welcome h1{font-size:2.4rem}
+/* Pixel avatars (Blake = a, Lauren = b) */
+.av{display:inline-flex;flex:none;border-radius:28%;overflow:hidden;background:#cfe6e0;vertical-align:middle;box-shadow:inset 0 0 0 1.5px var(--a)}
+.av.b{background:#f6dcd3;box-shadow:inset 0 0 0 1.5px var(--b)}
+.av svg{width:100%;height:100%;display:block}
+.seg button .av{margin:-2px 0}
+.segbar button{display:flex;align-items:center;justify-content:center;gap:8px}
+.field label .av{margin-right:2px}
+.pick2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.who-pick{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 8px 14px;border:2px solid var(--line);border-radius:18px;background:var(--surface);font:700 1.15rem/1 "Barlow Condensed",sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);cursor:pointer}
+.who-pick:active{transform:scale(.97)}
+.who-pick:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .brand{white-space:nowrap}
 @media (max-width:430px){.brand .bt{display:none}}
 @media (max-width:350px){.bgrid{grid-template-columns:repeat(3,1fr)}.week,.prs{grid-template-columns:1fr}.seg button{max-width:6em}}

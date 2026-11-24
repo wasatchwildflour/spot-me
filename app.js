@@ -75,7 +75,7 @@ function numOrNull(v) { v = String(v).trim().replace(",", "."); if (v === "") re
 
 /* ================= Settings & Store ================= */
 const GOALS = { strength: { n: "Strength", c: [4, 4, 6], i: [3, 8, 10] }, muscle: { n: "Build muscle", c: [3, 6, 10], i: [3, 10, 15] }, tone: { n: "Tone & endurance", c: [3, 12, 15], i: [3, 15, 20] } };
-const defaultSettings = () => ({ athletes: { a: { name: "Me", goal: "muscle" }, b: { name: "Partner", goal: "muscle" } }, rest: 90, bar: 45, yellow: 7, red: 14 });
+const defaultSettings = () => ({ athletes: { a: { name: "Blake", goal: "muscle" }, b: { name: "Lauren", goal: "muscle" } }, rest: 90, bar: 45, yellow: 7, red: 14 });
 const normSettings = s => deepMerge(defaultSettings(), clone(s || {}));
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
 
@@ -157,7 +157,22 @@ const Store = {
 
 /* ================= Derived data ================= */
 const S = () => Store.settings;
-const nameOf = a => (S().athletes[a] && S().athletes[a].name) || (a === "a" ? "Me" : "Partner");
+const NAMES = { a: "Blake", b: "Lauren" };
+const nameOf = a => NAMES[a] || NAMES.a;
+// Pixel avatars, the same ones Barnacle Bank uses.
+const PXPAL = { H: "#f2c94c", h: "#dcab2e", S: "#f8d3ae", s: "#e6b48e", E: "#2a2a2e", L: "#ecd28e", U: "#d2a93e", q: "#ecc29a", M: "#b5533c", C: "#f4a9a0", T: "#17647a", R: "#d9532f" };
+const PXA = {
+  a: ["................", "....HHHHHHHH....", "...HHHhHHHHHH...", "...HHhHHHHHHH...", "...HSSSHHHHHH...", "...HSSSSSSSSH...", "...SSESSSSESS...", "...SqCSSSSCqS...", "...SqSSSSSSqS...", "...SqUUUUUUqS...", "...SqqSMMSqqS...", "...SLLSUUSLLS...", "....LLLLLLLL....", "......ssss......", "..TTTTTTTTTTTT..", ".TTTTTTTTTTTTTT.", ".TTTTTTTTTTTTTT."],
+  b: ["................", "....HHHHHHHH....", "...HHHHHHHHHH...", "..HHHhHHHHhHHH..", "..HHSSSSSSSSHH..", "..HHSSSSSSSSHH..", "..HHSESSSSESHH..", "..HHSCSSSSCSHH..", "..HHSSSMMSSSHH..", "..HHHSSSSSSHHH..", "..HHH.ssss.HHH..", "..HHRRRRRRRRHH..", ".HHRRRRRRRRRRHH.", ".HRRRRRRRRRRRRH.", "..RRRRRRRRRRRR..", ".RRRRRRRRRRRRRR.", ".RRRRRRRRRRRRRR."],
+};
+const _pxCache = {};
+function pxSvg(a) {
+  if (_pxCache[a]) return _pxCache[a];
+  let r = ""; (PXA[a] || PXA.a).forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = row[x]; if (c !== ".") r += `<rect x="${x}" y="${y}" width="1" height="1" fill="${PXPAL[c]}"/>`; } });
+  return (_pxCache[a] = `<svg viewBox="0 1 16 16" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`);
+}
+// av(a) = small avatar chip used wherever a person is named; size in px.
+const av = (a, size = 22) => `<span class="av ${a}" style="width:${size}px;height:${size}px">${pxSvg(a)}</span>`;
 const goalOf = a => (S().athletes[a] && GOALS[S().athletes[a].goal]) ? S().athletes[a].goal : "muscle";
 let _sorted = null, _sv = -1;
 function sorted() { if (_sv !== Store.ver) { _sorted = Object.values(Store.workouts).filter(w => w && w.startedAt).sort((x, y) => y.startedAt - x.startedAt); _sv = Store.ver; } return _sorted; }
@@ -254,7 +269,7 @@ function renderSync() {
   el.className = "sync " + c; el.setAttribute("aria-label", t); el.title = t;
 }
 function renderChrome() {
-  $("#viewSeg").innerHTML = ["a", "b"].map(a => `<button data-act="view" data-a="${a}" aria-pressed="${state.view === a}"><span class="dot ${a}"></span><span class="t">${esc(nameOf(a))}</span></button>`).join("");
+  $("#viewSeg").innerHTML = ["a", "b"].map(a => `<button data-act="view" data-a="${a}" aria-pressed="${state.view === a}">${av(a)}<span class="t">${esc(nameOf(a))}</span></button>`).join("");
   const r = route(), act = activeWorkout();
   const red = EX.filter(e => badge(state.view, e.id).s === "r").length;
   document.querySelectorAll("#tabs a").forEach(a => {
@@ -294,7 +309,7 @@ function vTrain() {
   h += `<section><div class="sec-h"><h2>${ic("calendar")}This week</h2></div><div class="week">` + ["a", "b"].map(x => {
     const wk = sorted().filter(w => w.startedAt >= ws && (w.athletes || []).includes(x) && volume(w, x).n > 0);
     let v = 0, n = 0; const days = new Set(); wk.forEach(w => { const r = volume(w, x); v += r.v; n += r.n; days.add((new Date(w.startedAt).getDay() + 6) % 7); });
-    return `<div class="wk"><div class="who"><span class="dot ${x}"></span><span class="t">${esc(nameOf(x))}</span></div><dl><div><dt>Days</dt><dd class="num">${wk.length}</dd></div><div><dt>Sets</dt><dd class="num">${n}</dd></div><div><dt>Lb</dt><dd class="num">${v >= 10000 ? (v / 1000).toFixed(0) + "k" : v >= 1000 ? (v / 1000).toFixed(1) + "k" : fmtN(v)}</dd></div></dl><div class="days">${[0, 1, 2, 3, 4, 5, 6].map(i => `<i class="${days.has(i) ? "on" : ""}"></i>`).join("")}</div></div>`;
+    return `<div class="wk"><div class="who">${av(x)}<span class="t">${esc(nameOf(x))}</span></div><dl><div><dt>Days</dt><dd class="num">${wk.length}</dd></div><div><dt>Sets</dt><dd class="num">${n}</dd></div><div><dt>Lb</dt><dd class="num">${v >= 10000 ? (v / 1000).toFixed(0) + "k" : v >= 1000 ? (v / 1000).toFixed(1) + "k" : fmtN(v)}</dd></div></dl><div class="days">${[0, 1, 2, 3, 4, 5, 6].map(i => `<i class="${days.has(i) ? "on" : ""}"></i>`).join("")}</div></div>`;
   }).join("") + `</div></section>`;
   return h;
 }
@@ -307,12 +322,12 @@ function vPlan() {
   <section><div class="label">${mi("list")}Focus on</div><div class="chips">${Object.entries(C.opts).map(([k, n]) => `<button class="chip" data-act="p-opt" data-k="${k}" aria-pressed="${p.opts.includes(k)}">${esc(n)}</button>`).join("")}</div>
   <div class="label">${mi("barbell")}Equipment</div><div class="chips">${Object.entries(EQ_GROUPS).map(([k, g]) => `<button class="chip" data-act="p-eq" data-k="${k}" aria-pressed="${p.eqs.includes(k)}">${mi(g.eq[0])}${g.n}</button>`).join("")}</div>
   <div class="label">${mi("timer")}How many exercises</div><div class="segbar">${[3, 4, 5, 6, 7].map(n => `<button data-act="p-n" data-n="${n}" aria-pressed="${p.n === n}">${n}</button>`).join("")}</div>
-  <div class="label">${mi("users")}Who's lifting</div><div class="chips">${["a", "b"].map(a => `<button class="chip" data-act="p-who" data-a="${a}" aria-pressed="${p.athletes.includes(a)}"><span class="dot ${a}"></span>${esc(nameOf(a))}</button>`).join("")}</div></section>`;
+  <div class="label">${mi("users")}Who's lifting</div><div class="chips">${["a", "b"].map(a => `<button class="chip" data-act="p-who" data-a="${a}" aria-pressed="${p.athletes.includes(a)}">${av(a)}${esc(nameOf(a))}</button>`).join("")}</div></section>`;
   h += `<section><div class="sec-h"><h2>${ic("list")}Today's moves</h2><span class="hint">Due and overdue badges are picked first</span></div>`;
   h += p.items.map((id, i) => {
     const ex = EXM[id]; if (!ex) return "";
     return `<div class="ex"><div class="ex-h"><div class="grow"><button class="ex-name" data-act="howto" data-id="${id}">${esc(ex.n)}</button><div class="ex-tags">${eqPill(ex.eq)}<span class="pill">${esc(C.opts[ex.opt])}</span></div></div>${miniRings(p.athletes, id)}</div>
-    <div class="last">${p.athletes.map(a => { const s = suggest(a, ex); return `<div><span class="dot ${a}"></span><span><b>${esc(nameOf(a))}</b> ${esc(s.tgt)}${s.last ? ` · last ${esc(s.last)}` : ""}<br><span class="tip">${esc(s.tip)}</span></span></div>`; }).join("")}</div>
+    <div class="last">${p.athletes.map(a => { const s = suggest(a, ex); return `<div>${av(a)}<span><b>${esc(nameOf(a))}</b> ${esc(s.tgt)}${s.last ? ` · last ${esc(s.last)}` : ""}<br><span class="tip">${esc(s.tip)}</span></span></div>`; }).join("")}</div>
     <div class="ex-actions"><button class="btn small" data-act="howto" data-id="${id}">${ic("info")}How to</button><button class="btn small" data-act="p-swap" data-i="${i}">${ic("swap")}Swap</button><button class="btn small ghost" data-act="p-up" data-i="${i}" ${i === 0 ? "disabled" : ""} aria-label="Move up">${ic("up")}</button><button class="btn small ghost danger" data-act="p-rm" data-i="${i}" aria-label="Remove">${ic("trash")}</button></div></div>`;
   }).join("") + `<button class="btn block" data-act="p-add">${ic("plus")}Add an exercise</button></section>`;
   h += `<div class="actionbar"><div class="wrap"><button class="btn" data-act="p-shuffle" aria-label="Shuffle exercises">${ic("shuffle")}</button><button class="btn primary" data-act="start" ${p.items.length && p.athletes.length ? "" : "disabled"}>${ic("play")}Start workout</button></div></div>`;
@@ -331,13 +346,13 @@ function vWorkout() {
   const w = activeWorkout(); if (!w) return vTrain();
   const ath = w.athletes || ["a"];
   let h = `<section><div class="wo-head"><div><div class="eyebrow">${new Date(w.startedAt).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</div><h1>${esc(catTitle(w))}</h1></div><div class="clock num" data-elapsed="${w.startedAt}"></div></div>
-  <div class="stats">${ath.map(a => { const v = volume(w, a); return `<div><span><span class="dot ${a}"></span>${esc(nameOf(a))}</span><b class="num">${v.n} sets · ${fmtN(v.v)} lb</b></div>`; }).join("")}</div></section><section>`;
+  <div class="stats">${ath.map(a => { const v = volume(w, a); return `<div><span>${av(a)}${esc(nameOf(a))}</span><b class="num">${v.n} sets · ${fmtN(v.v)} lb</b></div>`; }).join("")}</div></section><section>`;
   for (const [k, e] of exList(w)) {
     const ex = EXM[e.id];
     h += `<div class="ex" id="ex-${k}"><div class="ex-h"><div class="grow"><button class="ex-name" data-act="howto" data-id="${ex.id}">${esc(ex.n)}</button><div class="ex-tags">${eqPill(ex.eq)}<span class="pill">${esc(CATS[ex.cat].opts[ex.opt])}</span></div></div><button class="icon-btn" data-act="howto" data-id="${ex.id}" aria-label="How to do ${esc(ex.n)}">${ic("info")}</button></div>`;
     for (const a of ath) {
       const s = suggest(a, ex, w.id), log = (e.log && e.log[a]) || [], t = target(ex, a);
-      h += `<div class="who-h"><span class="dot ${a}"></span>${esc(nameOf(a))} <span class="meta">${esc(s.tgt)}${s.last ? " · last " + esc(s.last) : ""}</span></div>${s.tip ? `<div class="meta tip" style="margin-top:-6px">${esc(s.tip)}</div>` : ""}`;
+      h += `<div class="who-h">${av(a)}${esc(nameOf(a))} <span class="meta">${esc(s.tgt)}${s.last ? " · last " + esc(s.last) : ""}</span></div>${s.tip ? `<div class="meta tip" style="margin-top:-6px">${esc(s.tip)}</div>` : ""}`;
       h += `<div class="sets">` + log.map((st, i) => `<div class="set${st.d ? " done" : ""}">
         <button class="setno${st.wu ? " wu" : ""}" data-act="wu" data-k="${k}" data-a="${a}" data-i="${i}" aria-label="Set ${i + 1}${st.wu ? ", warm-up" : ""}. Tap to toggle warm-up">${st.wu ? "W" : i + 1}</button>
         <div class="fld"><input id="w-${k}-${a}-${i}" inputmode="decimal" enterkeyhint="next" autocomplete="off" data-f="w" data-k="${k}" data-a="${a}" data-i="${i}" value="${st.w == null ? "" : esc(st.w)}" placeholder="${ex.bw ? "+0" : "0"}" aria-label="Weight"><span>${ex.bw ? "+lb" : "lb"}</span></div>
@@ -414,9 +429,9 @@ function vHistory() {
     const m = new Date(w.startedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" });
     if (m !== month) { month = m; h += `<div class="eyebrow" style="margin-top:8px">${esc(m)}</div>`; }
     const d = new Date(w.startedAt), open = state.openHist === w.id, ath = w.athletes || [];
-    h += `<div class="h-item"><button class="h-sum" data-act="hist" data-id="${w.id}" aria-expanded="${open}"><span class="h-date"><b class="num">${d.getDate()}</b><span>${d.toLocaleDateString(undefined, { weekday: "short" })}</span></span><span><b style="font-family:var(--display);font-size:1.2rem;text-transform:uppercase">${esc(catTitle(w))}</b><br><span class="meta num">${fmtDur(w.finishedAt - w.startedAt)} · ${ath.map(a => esc(nameOf(a)) + " " + volume(w, a).n + " sets").join(" · ")}</span></span><span>${ath.map(a => `<span class="dot ${a}"></span>`).join(" ")}</span></button>`;
+    h += `<div class="h-item"><button class="h-sum" data-act="hist" data-id="${w.id}" aria-expanded="${open}"><span class="h-date"><b class="num">${d.getDate()}</b><span>${d.toLocaleDateString(undefined, { weekday: "short" })}</span></span><span><b style="font-family:var(--display);font-size:1.2rem;text-transform:uppercase">${esc(catTitle(w))}</b><br><span class="meta num">${fmtDur(w.finishedAt - w.startedAt)} · ${ath.map(a => esc(nameOf(a)) + " " + volume(w, a).n + " sets").join(" · ")}</span></span><span>${ath.map(a => `${av(a)}`).join(" ")}</span></button>`;
     if (open) {
-      h += `<div class="h-body">` + exList(w).map(([, e]) => { const ex = EXM[e.id]; const rows = ath.map(a => { const s = workSets(e, a); return s.length ? `<div><span class="dot ${a}"></span><span class="num">${s.map(x => fmtW(x.w) + "×" + x.r).join(", ")}</span></div>` : ""; }).join(""); return rows || e.note ? `<div class="h-ex"><b>${esc(ex.n)}</b>${rows}${e.note ? `<div><i>${esc(e.note)}</i></div>` : ""}</div>` : ""; }).join("") +
+      h += `<div class="h-body">` + exList(w).map(([, e]) => { const ex = EXM[e.id]; const rows = ath.map(a => { const s = workSets(e, a); return s.length ? `<div>${av(a)}<span class="num">${s.map(x => fmtW(x.w) + "×" + x.r).join(", ")}</span></div>` : ""; }).join(""); return rows || e.note ? `<div class="h-ex"><b>${esc(ex.n)}</b>${rows}${e.note ? `<div><i>${esc(e.note)}</i></div>` : ""}</div>` : ""; }).join("") +
         `<div class="row"><button class="btn small" data-act="repeat" data-id="${w.id}">${ic("repeat")}Repeat</button>${state.confirmDel === w.id ? `<button class="btn small danger" data-act="del-yes" data-id="${w.id}">${ic("trash")}Delete for good</button><button class="btn small ghost" data-act="del-no">Keep</button>` : `<button class="btn small ghost danger" data-act="del" data-id="${w.id}">${ic("trash")}Delete</button>`}</div></div>`;
     }
     h += `</div>`;
@@ -442,9 +457,9 @@ function vProgress() {
   if (state.showTable) h += `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Who</th><th>Best set</th><th>${usesReps ? "Reps" : ex.time ? "Sec" : "Est. 1RM"}</th></tr></thead><tbody>${series.flatMap(s => s.pts.map(p => ({ ...p, who: s.name }))).sort((x, y) => y.x - x.x).map(p => `<tr><td>${new Date(p.x).toLocaleDateString()}</td><td>${esc(p.who)}</td><td>${fmtW(p.s.w)} × ${p.s.r}</td><td>${fmtN(p.y)}</td></tr>`).join("")}</tbody></table></div>`;
   h += `<p class="meta" style="margin:0">${ex.time || usesReps ? "Best set from each workout." : "Estimated from your best set each workout: weight × (1 + reps ÷ 30). Warm-ups are left out."}</p></section>`;
   h += `<section><h3>${ic("trophy")}Personal records</h3><div class="prs">` + ["a", "b"].map(a => {
-    const r = idx()[a][ex.id]; if (!r) return `<div class="wk"><div class="who"><span class="dot ${a}"></span><span class="t">${esc(nameOf(a))}</span></div><span class="meta">No sets yet.</span></div>`;
+    const r = idx()[a][ex.id]; if (!r) return `<div class="wk"><div class="who">${av(a)}<span class="t">${esc(nameOf(a))}</span></div><span class="meta">No sets yet.</span></div>`;
     let heavy = 0; for (const w of sorted()) for (const [, e] of exList(w)) if (e.id === ex.id) for (const s of workSets(e, a)) heavy = Math.max(heavy, +s.w || 0);
-    return `<div class="wk"><div class="who"><span class="dot ${a}"></span><span class="t">${esc(nameOf(a))}</span></div><dl><div><dt>Heaviest</dt><dd class="num">${fmtW(heavy || null)}</dd></div><div><dt>${ex.time ? "Longest" : usesReps ? "Reps" : "1RM"}</dt><dd class="num">${fmtN(r.best)}</dd></div><div><dt>Done</dt><dd class="num">${r.count}×</dd></div></dl><span class="meta">Best: ${fmtW(r.bestSet.w)}×${r.bestSet.r}</span></div>`;
+    return `<div class="wk"><div class="who">${av(a)}<span class="t">${esc(nameOf(a))}</span></div><dl><div><dt>Heaviest</dt><dd class="num">${fmtW(heavy || null)}</dd></div><div><dt>${ex.time ? "Longest" : usesReps ? "Reps" : "1RM"}</dt><dd class="num">${fmtN(r.best)}</dd></div><div><dt>Done</dt><dd class="num">${r.count}×</dd></div></dl><span class="meta">Best: ${fmtW(r.bestSet.w)}×${r.bestSet.r}</span></div>`;
   }).join("") + `</div></section>`;
   const ws0 = weekStart(Date.now()); const weeks = []; for (let i = 7; i >= 0; i--) weeks.push(ws0 - i * 7 * DAY);
   const vol = ["a", "b"].map(a => ({ a, name: nameOf(a), color: `var(--${a})`, vals: weeks.map(ws => sorted().filter(w => w.startedAt >= ws && w.startedAt < ws + 7 * DAY).reduce((s, w) => s + volume(w, a).v, 0)) })).filter(s => s.vals.some(v => v > 0));
@@ -539,15 +554,15 @@ function settingsSheet() {
   const s = S(), me = lsGet("spotme.me", "a");
   const cloud = Store.mode === "cloud";
   openSheet(`<div class="sheet-top"><h2>${ic("users")}Settings</h2>${closeBtn}</div>
-  ${["a", "b"].map(a => `<div class="grid2"><div class="field"><label for="nm-${a}"><span class="dot ${a}"></span> Lifter ${a === "a" ? 1 : 2}</label><input id="nm-${a}" value="${esc(s.athletes[a].name)}" maxlength="16" autocomplete="off"></div><div class="field"><label for="gl-${a}">Goal</label><select id="gl-${a}">${Object.entries(GOALS).map(([k, g]) => `<option value="${k}"${s.athletes[a].goal === k ? " selected" : ""}>${g.n}</option>`).join("")}</select></div></div>`).join("")}
-  <div class="field"><label>This phone belongs to</label><div class="segbar">${["a", "b"].map(a => `<button data-act="set-me" data-a="${a}" aria-pressed="${me === a}">${esc(s.athletes[a].name)}</button>`).join("")}</div></div>
+  <div class="field"><label>This phone belongs to</label><div class="segbar">${["a", "b"].map(a => `<button data-act="set-me" data-a="${a}" aria-pressed="${me === a}">${av(a, 24)}${esc(nameOf(a))}</button>`).join("")}</div></div>
+  <div class="grid2">${["a", "b"].map(a => `<div class="field"><label for="gl-${a}">${av(a, 20)} ${esc(nameOf(a))}'s goal</label><select id="gl-${a}">${Object.entries(GOALS).map(([k, g]) => `<option value="${k}"${s.athletes[a].goal === k ? " selected" : ""}>${g.n}</option>`).join("")}</select></div>`).join("")}</div>
   <div class="grid2"><div class="field"><label for="st-rest">Rest timer</label><select id="st-rest">${[45, 60, 75, 90, 120, 150, 180].map(v => `<option value="${v}"${s.rest === v ? " selected" : ""}>${v < 60 ? v + " sec" : (v / 60) + " min"}</option>`).join("")}</select></div>
   <div class="field"><label for="st-bar">Barbell</label><select id="st-bar">${[45, 35, 25, 15].map(v => `<option value="${v}"${s.bar === v ? " selected" : ""}>${v} lb</option>`).join("")}</select></div></div>
   <div class="grid2"><div class="field"><label for="st-y">Badge turns yellow after</label><select id="st-y">${[3, 4, 5, 6, 7, 10, 14].map(v => `<option value="${v}"${s.yellow === v ? " selected" : ""}>${v} days</option>`).join("")}</select></div>
   <div class="field"><label for="st-r">Badge turns red after</label><select id="st-r">${[7, 10, 14, 21, 28].map(v => `<option value="${v}"${s.red === v ? " selected" : ""}>${v} days</option>`).join("")}</select></div></div>
   <button class="btn primary block" data-act="save-settings">${ic("check")}Save</button>
   <h3>${ic("link")}Partner sync</h3>
-  ${cloud ? `<p class="meta" style="margin:0">Open this invite on ${esc(s.athletes.b.name)}'s phone (scan the code or send the link). Both phones then share one log.</p>
+  ${cloud ? `<p class="meta" style="margin:0">Open this invite on ${esc(nameOf(me === "a" ? "b" : "a"))}'s phone (scan the code or send the link). Both phones then share one log.</p>
   <div class="qr" id="qr"><span class="meta">Loading code…</span></div>
   <div class="code" id="inviteLink">${esc(inviteLink())}</div>
   <div class="grid2"><button class="btn" data-act="copy-invite">${ic("copy")}Copy link</button><button class="btn" data-act="join-other">${ic("link")}Join another</button></div>` : `<div class="notice">Cloud sync isn't set up in this copy of the app, so workouts are saved on this phone only.</div>`}
@@ -566,15 +581,13 @@ async function drawQR() {
 function welcomeSheet(joining) {
   const cloud = Store.mode === "cloud" || (firebaseConfig && firebaseConfig.apiKey);
   if (joining) {
-    openSheet(`<div class="welcome stack" style="gap:14px"><div class="eyebrow">Joined a shared log</div><h1>Who's using this phone?</h1><p class="meta" style="margin:0">Your stats and badges show first. You can switch anytime from the top bar.</p>
-    <div class="grid2">${["a", "b"].map(a => `<button class="btn" data-act="welcome-me" data-a="${a}" style="min-height:64px"><span class="dot ${a}"></span>${esc(nameOf(a))}</button>`).join("")}</div></div>`, { locked: true });
+    openSheet(`<div class="welcome stack" style="gap:14px"><div class="eyebrow">Joined your shared log</div><h1>Whose phone is this?</h1><p class="meta" style="margin:0">Your stats and badges show first. You can switch anytime from the top bar.</p>
+    <div class="pick2">${["a", "b"].map(a => `<button class="who-pick" data-act="welcome-me" data-a="${a}">${av(a, 84)}<b>${esc(nameOf(a))}</b></button>`).join("")}</div></div>`, { locked: true });
     return;
   }
-  openSheet(`<div class="welcome stack" style="gap:14px"><div class="eyebrow">Welcome</div><h1>Spot Me</h1><p class="meta" style="margin:0">Plan workouts, log sets together and keep every exercise badge green.</p>
-  <div class="field"><label for="w-a"><span class="dot a"></span> Your name</label><input id="w-a" maxlength="16" placeholder="Your name" autocomplete="off"></div>
-  <div class="field"><label for="w-b"><span class="dot b"></span> Workout partner</label><input id="w-b" maxlength="16" value="Lauren" autocomplete="off"></div>
-  <button class="btn primary block" data-act="welcome-new">${ic("play")}Start our log</button>
-  ${cloud ? `<div class="notice">Already set up on the other phone? Open the invite link from Settings there, or paste it here:</div><div class="field"><input id="w-code" placeholder="Paste invite link or code" autocomplete="off"></div><button class="btn block" data-act="welcome-join">${ic("link")}Join partner's log</button>` : ""}</div>`, { locked: true });
+  openSheet(`<div class="welcome stack" style="gap:14px"><div class="eyebrow">Welcome</div><h1>Spot Me</h1><p class="meta" style="margin:0">Plan workouts, log sets together and keep every exercise badge green. Tap yourself to start your log.</p>
+  <div class="pick2">${["a", "b"].map(a => `<button class="who-pick" data-act="welcome-new" data-a="${a}">${av(a, 84)}<b>${esc(nameOf(a))}</b></button>`).join("")}</div>
+  ${cloud ? `<div class="notice">Already set up on the other phone? Open the invite link from Settings there, or paste it here:</div><div class="field"><input id="w-code" placeholder="Paste invite link or code" autocomplete="off"></div><button class="btn block" data-act="welcome-join">${ic("link")}Join the shared log</button>` : ""}</div>`, { locked: true });
 }
 function platesSheet(w) {
   const bar = S().bar; let side = Math.max(0, (w - bar) / 2); const out = []; for (const p of [45, 35, 25, 10, 5, 2.5]) while (side >= p - 1e-9) { out.push(p); side -= p; }
@@ -590,7 +603,7 @@ function summarySheet(w) {
     for (const [, e] of exList(w)) { const ex = EXM[e.id]; let b = 0, bs = null; for (const s of workSets(e, a)) { const m = metric(ex, s); if (m > b) { b = m; bs = s; } } if (!b) continue;
       let prev = 0, had = false; for (const x of sorted()) { if (x.startedAt >= before) continue; for (const [, e2] of exList(x)) if (e2.id === e.id) for (const s of workSets(e2, a)) { had = true; prev = Math.max(prev, metric(ex, s)); } }
       if (!had) newB.push(ex.n); else if (b > prev + .01) prs.push(ex.n + " " + fmtW(bs.w) + "×" + bs.r); }
-    return `<div class="wk"><div class="who"><span class="dot ${a}"></span><span class="t">${esc(nameOf(a))}</span></div><dl><div><dt>Sets</dt><dd class="num">${v.n}</dd></div><div><dt>Lb</dt><dd class="num">${fmtN(v.v)}</dd></div><div><dt>PRs</dt><dd class="num">${prs.length}</dd></div></dl>${newB.map(n => `<div class="pr-flag">${mi("medal")} New badge: ${esc(n)}</div>`).join("")}${prs.map(p => `<div class="pr-flag">${mi("trophy")} Best ever: ${esc(p)}</div>`).join("")}</div>`; }).join("");
+    return `<div class="wk"><div class="who">${av(a)}<span class="t">${esc(nameOf(a))}</span></div><dl><div><dt>Sets</dt><dd class="num">${v.n}</dd></div><div><dt>Lb</dt><dd class="num">${fmtN(v.v)}</dd></div><div><dt>PRs</dt><dd class="num">${prs.length}</dd></div></dl>${newB.map(n => `<div class="pr-flag">${mi("medal")} New badge: ${esc(n)}</div>`).join("")}${prs.map(p => `<div class="pr-flag">${mi("trophy")} Best ever: ${esc(p)}</div>`).join("")}</div>`; }).join("");
   openSheet(`<div class="sheet-top"><div><div class="eyebrow">Workout complete · ${fmtDur(w.finishedAt - w.startedAt)}</div><h1>${esc(catTitle(w))} done</h1></div>${closeBtn}</div><div class="prs">${rows}</div><p class="meta" style="margin:0">Every exercise you logged has its badge refilled.</p><a class="btn primary block" href="#badges" data-act="close">${ic("medal")}See badges</a>`);
 }
 
@@ -680,15 +693,15 @@ document.addEventListener("click", ev => {
     case "rest-sub": if (state.rest) { state.rest.end -= 15000; renderRest(); } break;
     case "rest-skip": state.rest = null; renderRest(); break;
     case "set-me": lsSet("spotme.me", b.dataset.a); state.view = b.dataset.a; lsSet("spotme.view", state.view); b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); render(); break;
-    case "save-settings": { const s = clone(S()); for (const a of ["a", "b"]) { s.athletes[a].name = $("#nm-" + a).value.trim() || (a === "a" ? "Me" : "Partner"); s.athletes[a].goal = $("#gl-" + a).value; } s.rest = +$("#st-rest").value; s.bar = +$("#st-bar").value; s.yellow = +$("#st-y").value; s.red = Math.max(s.yellow + 1, +$("#st-r").value); Store.saveSettings(s); closeSheet(); toast("Settings saved"); break; }
+    case "save-settings": { const s = clone(S()); for (const a of ["a", "b"]) { s.athletes[a].goal = $("#gl-" + a).value; } s.rest = +$("#st-rest").value; s.bar = +$("#st-bar").value; s.yellow = +$("#st-y").value; s.red = Math.max(s.yellow + 1, +$("#st-r").value); Store.saveSettings(s); closeSheet(); toast("Settings saved"); break; }
     case "copy-invite": { const t = inviteLink(); navigator.clipboard && navigator.clipboard.writeText(t).then(() => toast("Invite link copied"), () => toast("Long-press the link to copy it")); break; }
     case "join-other": closeSheet(); welcomeSheet(false); break;
     case "export": { const blob = new Blob([JSON.stringify({ app: "spot-me", v: 1, exported: new Date().toISOString(), settings: S(), workouts: Store.workouts }, null, 1)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "spot-me-backup-" + dstr(Date.now()) + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); break; }
-    case "welcome-new": { const na = $("#w-a").value.trim(), nb = $("#w-b").value.trim(); if (!na) { toast("Add your name to start."); $("#w-a").focus(); break; }
-      const s = clone(S()); s.athletes.a.name = na; s.athletes.b.name = nb || "Partner"; lsSet("spotme.me", "a"); state.view = "a"; lsSet("spotme.view", "a"); lsSet("spotme.onboarded", true);
+    case "welcome-new": { const me = b.dataset.a === "b" ? "b" : "a", other = me === "a" ? "b" : "a";
+      const s = clone(S()); s.athletes.a.name = NAMES.a; s.athletes.b.name = NAMES.b; lsSet("spotme.me", me); state.view = me; lsSet("spotme.view", me); lsSet("spotme.onboarded", true);
       if (Store.mode === "cloud" || (firebaseConfig && firebaseConfig.apiKey)) { Store.seed = true; Store.settings = s; Store.setHousehold(newHid()); if (Store.mode === "cloud" && Store.authed) Store.F.setDoc(Store.ref("meta", "settings"), clone(s)).catch(e => Store.fail(e)); }
       else Store.saveSettings(s);
-      closeSheet(true); render(); toast("You're set. Invite " + (nb || "your partner") + " from Settings."); break; }
+      closeSheet(true); render(); toast("You're set. Invite " + nameOf(other) + " from Settings."); break; }
     case "welcome-join": { const hid = parseJoin($("#w-code").value); if (!hid) { toast("That doesn't look like an invite link or code."); break; } Store.setHousehold(hid); lsSet("spotme.onboarded", true); closeSheet(true); welcomeSheet(true); break; }
     case "welcome-me": lsSet("spotme.me", b.dataset.a); state.view = b.dataset.a; lsSet("spotme.view", state.view); closeSheet(true); render(); break;
   }
