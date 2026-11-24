@@ -293,6 +293,16 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut
 .seg button .av{margin:-2px 0}
 .segbar button{display:flex;align-items:center;justify-content:center;gap:8px}
 .field label .av{margin-right:2px}
+/* Workout: whose sets are being logged */
+.who-tog{position:sticky;top:calc(var(--sat) + 63px);z-index:15;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;margin:0 0 14px;background:var(--sunk);border-radius:16px;box-shadow:0 4px 10px -6px rgba(0,0,0,.35)}
+.who-tog button{display:flex;align-items:center;gap:10px;min-height:54px;padding:6px 10px;border:0;border-radius:12px;background:transparent;text-align:left;color:var(--muted);min-width:0}
+.who-tog button>span{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.who-tog button b{font-family:var(--display);font-size:1.15rem;letter-spacing:.03em;text-transform:uppercase}
+.who-tog button .num{font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who-tog button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.who-tog button[aria-pressed="false"] .av{opacity:.55;filter:grayscale(.4)}
+.who-tog.solo{background:transparent;box-shadow:none;padding:0}
+.who-tog.solo button{background:var(--surface)}
 .pick2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .who-pick{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 8px 14px;border:2px solid var(--line);border-radius:18px;background:var(--surface);font:700 1.15rem/1 "Barlow Condensed",sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);cursor:pointer}
 .who-pick:active{transform:scale(.97)}

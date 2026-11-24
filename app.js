@@ -345,12 +345,15 @@ function ringSvg(b, size, sw, label, who) {
 function vWorkout() {
   const w = activeWorkout(); if (!w) return vTrain();
   const ath = w.athletes || ["a"];
-  let h = `<section><div class="wo-head"><div><div class="eyebrow">${new Date(w.startedAt).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</div><h1>${esc(catTitle(w))}</h1></div><div class="clock num" data-elapsed="${w.startedAt}"></div></div>
-  <div class="stats">${ath.map(a => { const v = volume(w, a); return `<div><span>${av(a)}${esc(nameOf(a))}</span><b class="num">${v.n} sets · ${fmtN(v.v)} lb</b></div>`; }).join("")}</div></section><section>`;
+  // Log one person at a time; the toggle switches whose sets are shown.
+  if (!ath.includes(state.logWho)) state.logWho = ath.includes(state.view) ? state.view : ath[0];
+  const cur = state.logWho;
+  let h = `<section><div class="wo-head"><div><div class="eyebrow">${new Date(w.startedAt).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</div><h1>${esc(catTitle(w))}</h1></div><div class="clock num" data-elapsed="${w.startedAt}"></div></div></section>
+  <div class="who-tog${ath.length > 1 ? "" : " solo"}" role="group" aria-label="Whose sets to log">${ath.map(a => { const v = volume(w, a); return `<button data-act="log-who" data-a="${a}" aria-pressed="${a === cur}">${av(a, 34)}<span><b>${esc(nameOf(a))}</b><span class="num">${v.n} set${v.n === 1 ? "" : "s"} · ${fmtN(v.v)} lb</span></span></button>`; }).join("")}</div><section>`;
   for (const [k, e] of exList(w)) {
     const ex = EXM[e.id];
     h += `<div class="ex" id="ex-${k}"><div class="ex-h"><div class="grow"><button class="ex-name" data-act="howto" data-id="${ex.id}">${esc(ex.n)}</button><div class="ex-tags">${eqPill(ex.eq)}<span class="pill">${esc(CATS[ex.cat].opts[ex.opt])}</span></div></div><button class="icon-btn" data-act="howto" data-id="${ex.id}" aria-label="How to do ${esc(ex.n)}">${ic("info")}</button></div>`;
-    for (const a of ath) {
+    for (const a of [cur]) {
       const s = suggest(a, ex, w.id), log = (e.log && e.log[a]) || [], t = target(ex, a);
       h += `<div class="who-h">${av(a)}${esc(nameOf(a))} <span class="meta">${esc(s.tgt)}${s.last ? " · last " + esc(s.last) : ""}</span></div>${s.tip ? `<div class="meta tip" style="margin-top:-6px">${esc(s.tip)}</div>` : ""}`;
       h += `<div class="sets">` + log.map((st, i) => `<div class="set${st.d ? " done" : ""}">
@@ -571,23 +574,28 @@ function settingsSheet() {
   <p class="meta" style="margin:0">Spot Me · ${EX.length} exercises</p>`);
   if (cloud) drawQR();
 }
-const inviteLink = () => location.origin + location.pathname + "#join=" + (Store.hid || "");
+// The invite names who it's for (the other person), so the partner's phone opens as them.
+const inviteLink = () => location.origin + location.pathname + "#join=" + (Store.hid || "") + "&me=" + (lsGet("spotme.me", "a") === "a" ? "b" : "a");
+const joinWho = v => { const m = String(v || "").match(/me=([ab])\b/); return m ? m[1] : null; };
+// First launch: no setup screen. Quietly start a shared log with this phone as Blake.
+function startLog(me) {
+  const s = clone(S()); s.athletes.a.name = NAMES.a; s.athletes.b.name = NAMES.b;
+  lsSet("spotme.me", me); state.view = me; lsSet("spotme.view", me); lsSet("spotme.onboarded", true);
+  if (Store.mode === "cloud") { Store.seed = true; Store.settings = s; Store.setHousehold(newHid()); if (Store.authed) Store.F.setDoc(Store.ref("meta", "settings"), clone(s)).catch(e => Store.fail(e)); }
+  else Store.saveSettings(s);
+}
+function setMe(a) { lsSet("spotme.me", a); state.view = a; lsSet("spotme.view", a); }
 let qrLib = null;
 async function drawQR() {
   try { if (!window.qrcode) await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
     const q = window.qrcode(0, "M"); q.addData(inviteLink()); q.make(); const el = $("#qr"); if (el) el.innerHTML = q.createSvgTag(5, 0);
   } catch (e) { const el = $("#qr"); if (el) el.innerHTML = '<span class="meta">Code unavailable offline. Use the link.</span>'; }
 }
-function welcomeSheet(joining) {
-  const cloud = Store.mode === "cloud" || (firebaseConfig && firebaseConfig.apiKey);
-  if (joining) {
-    openSheet(`<div class="welcome stack" style="gap:14px"><div class="eyebrow">Joined your shared log</div><h1>Whose phone is this?</h1><p class="meta" style="margin:0">Your stats and badges show first. You can switch anytime from the top bar.</p>
-    <div class="pick2">${["a", "b"].map(a => `<button class="who-pick" data-act="welcome-me" data-a="${a}">${av(a, 84)}<b>${esc(nameOf(a))}</b></button>`).join("")}</div></div>`, { locked: true });
-    return;
-  }
-  openSheet(`<div class="welcome stack" style="gap:14px"><div class="eyebrow">Welcome</div><h1>Spot Me</h1><p class="meta" style="margin:0">Plan workouts, log sets together and keep every exercise badge green. Tap yourself to start your log.</p>
-  <div class="pick2">${["a", "b"].map(a => `<button class="who-pick" data-act="welcome-new" data-a="${a}">${av(a, 84)}<b>${esc(nameOf(a))}</b></button>`).join("")}</div>
-  ${cloud ? `<div class="notice">Already set up on the other phone? Open the invite link from Settings there, or paste it here:</div><div class="field"><input id="w-code" placeholder="Paste invite link or code" autocomplete="off"></div><button class="btn block" data-act="welcome-join">${ic("link")}Join the shared log</button>` : ""}</div>`, { locked: true });
+function joinSheet() {
+  openSheet(`<div class="sheet-top"><h2>${ic("link")}Join a shared log</h2>${closeBtn}</div>
+  <p class="meta" style="margin:0">Open the invite from Settings on the other phone, or paste its link here.</p>
+  <div class="field"><input id="w-code" placeholder="Paste invite link or code" autocomplete="off"></div>
+  <button class="btn primary block" data-act="welcome-join">${ic("link")}Join</button>`);
 }
 function platesSheet(w) {
   const bar = S().bar; let side = Math.max(0, (w - bar) / 2); const out = []; for (const p of [45, 35, 25, 10, 5, 2.5]) while (side >= p - 1e-9) { out.push(p); side -= p; }
@@ -695,15 +703,10 @@ document.addEventListener("click", ev => {
     case "set-me": lsSet("spotme.me", b.dataset.a); state.view = b.dataset.a; lsSet("spotme.view", state.view); b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); render(); break;
     case "save-settings": { const s = clone(S()); for (const a of ["a", "b"]) { s.athletes[a].goal = $("#gl-" + a).value; } s.rest = +$("#st-rest").value; s.bar = +$("#st-bar").value; s.yellow = +$("#st-y").value; s.red = Math.max(s.yellow + 1, +$("#st-r").value); Store.saveSettings(s); closeSheet(); toast("Settings saved"); break; }
     case "copy-invite": { const t = inviteLink(); navigator.clipboard && navigator.clipboard.writeText(t).then(() => toast("Invite link copied"), () => toast("Long-press the link to copy it")); break; }
-    case "join-other": closeSheet(); welcomeSheet(false); break;
+    case "join-other": closeSheet(); joinSheet(); break;
     case "export": { const blob = new Blob([JSON.stringify({ app: "spot-me", v: 1, exported: new Date().toISOString(), settings: S(), workouts: Store.workouts }, null, 1)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "spot-me-backup-" + dstr(Date.now()) + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); break; }
-    case "welcome-new": { const me = b.dataset.a === "b" ? "b" : "a", other = me === "a" ? "b" : "a";
-      const s = clone(S()); s.athletes.a.name = NAMES.a; s.athletes.b.name = NAMES.b; lsSet("spotme.me", me); state.view = me; lsSet("spotme.view", me); lsSet("spotme.onboarded", true);
-      if (Store.mode === "cloud" || (firebaseConfig && firebaseConfig.apiKey)) { Store.seed = true; Store.settings = s; Store.setHousehold(newHid()); if (Store.mode === "cloud" && Store.authed) Store.F.setDoc(Store.ref("meta", "settings"), clone(s)).catch(e => Store.fail(e)); }
-      else Store.saveSettings(s);
-      closeSheet(true); render(); toast("You're set. Invite " + nameOf(other) + " from Settings."); break; }
-    case "welcome-join": { const hid = parseJoin($("#w-code").value); if (!hid) { toast("That doesn't look like an invite link or code."); break; } Store.setHousehold(hid); lsSet("spotme.onboarded", true); closeSheet(true); welcomeSheet(true); break; }
-    case "welcome-me": lsSet("spotme.me", b.dataset.a); state.view = b.dataset.a; lsSet("spotme.view", state.view); closeSheet(true); render(); break;
+    case "welcome-join": { const v = $("#w-code").value, hid = parseJoin(v); if (!hid) { toast("That doesn't look like an invite link or code."); break; } closeSheet(true); handleJoin(hid, joinWho(v)); break; }
+    case "log-who": state.logWho = b.dataset.a; render(); break;
   }
 });
 $("#gear").addEventListener("click", settingsSheet);
@@ -725,22 +728,24 @@ document.addEventListener("change", async ev => {
   }
 });
 document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !$("#sheet").hidden) closeSheet(); if (ev.key === "Enter" && ev.target.dataset && ev.target.dataset.f) ev.target.blur(); });
-window.addEventListener("hashchange", () => { const j = parseJoin(location.hash); if (j) { handleJoin(j); return; } state.confirmDiscard = false; render(); window.scrollTo(0, 0); if (route() === "workout" && activeWorkout()) keepAwake(true); });
+window.addEventListener("hashchange", () => { const j = parseJoin(location.hash); if (j) { handleJoin(j, joinWho(location.hash)); return; } state.confirmDiscard = false; render(); window.scrollTo(0, 0); if (route() === "workout" && activeWorkout()) keepAwake(true); });
 let rsT; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { if (route() === "progress") render(); }, 200); });
 window.addEventListener("pagehide", () => Store.flushAll());
 
-function handleJoin(hid) {
+function handleJoin(hid, who) {
   history.replaceState(null, "", location.pathname + "#train");
+  if (who) setMe(who);
   if (Store.hid === hid) { toast("This phone is already on that log."); render(); return; }
-  Store.setHousehold(hid); lsSet("spotme.onboarded", true); render(); welcomeSheet(true);
+  Store.setHousehold(hid); lsSet("spotme.onboarded", true); render();
+  toast("Joined the shared log" + (who ? " as " + nameOf(who) : "") + ".");
 }
 
 /* ================= Boot ================= */
 render();
 Store.init().then(() => {
   const j = parseJoin(location.hash);
-  if (j) handleJoin(j);
-  else if (!lsGet("spotme.onboarded", false) || (Store.mode === "cloud" && !Store.hid)) welcomeSheet(false);
+  if (j) handleJoin(j, joinWho(location.hash));
+  else if (!lsGet("spotme.onboarded", false) || (Store.mode === "cloud" && !Store.hid)) startLog(lsGet("spotme.me", "a"));
   render();
 });
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
