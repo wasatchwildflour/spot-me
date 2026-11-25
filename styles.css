@@ -3,7 +3,7 @@
    are reserved for badge freshness; lifters are blue and pink. */
 :root{
   --bg:#f2f3f0; --surface:#ffffff; --sunk:#e7e9e5; --ink:#15181b; --muted:#5a6269; --line:#d6dad5;
-  --a:#2a62c4; --b:#b8407e;
+  --a:#2a62c4; --b:#b8407e; --ab:#e0741f;
   --g:#1d8a4b; --y:#d49b00; --r:#d0392b; --g-bg:#e2f3e8; --y-bg:#fbf1d6; --r-bg:#fbe4e1;
   --danger:#b3261e; --hl:#f0bd1f;
   --display:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
@@ -15,7 +15,7 @@
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0f1113; --surface:#1a1d20; --sunk:#24282c; --ink:#eceeec; --muted:#9aa3aa; --line:#2d3236;
-  --a:#5b8ee8; --b:#d65a95;
+  --a:#5b8ee8; --b:#d65a95; --ab:#d06a1c;
   --g:#3fb872; --y:#e8b52e; --r:#ef6b5e; --g-bg:#16301f; --y-bg:#352a0d; --r-bg:#3a1c19;
   --danger:#ef6b61; color-scheme:dark}}
 
@@ -311,3 +311,29 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut
 @media (max-width:430px){.brand .bt{display:none}}
 @media (max-width:350px){.bgrid{grid-template-columns:repeat(3,1fr)}.week,.prs{grid-template-columns:1fr}.seg button{max-width:6em}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* History calendar: blue = Blake, pink = Lauren, orange = both */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r10);padding:10px 10px 12px;display:flex;flex-direction:column;gap:8px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between}
+.cal-nav b{font-family:var(--display);font-size:1.3rem;text-transform:uppercase;letter-spacing:.03em}
+.cal-nav button[disabled]{opacity:.3}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-wd{text-align:center;font-size:.72rem;font-weight:700;color:var(--muted);padding-bottom:2px}
+.cal-d{aspect-ratio:1;display:grid;place-items:center;border-radius:10px;font-size:.92rem;color:var(--muted);border:0;background:transparent;padding:0;position:relative}
+.cal-d.today{box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font-weight:700}
+.cal-d.on{color:#fff;font-weight:700}
+.cal-d.on.a{background:var(--a)} .cal-d.on.b{background:var(--b)} .cal-d.on.ab{background:var(--ab)}
+.cal-d.on[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.cal-key{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:.85rem;padding-top:4px;border-top:1px solid var(--line)}
+.cal-key>span{display:inline-flex;align-items:center;gap:6px}
+.ck{width:12px;height:12px;border-radius:4px;display:inline-block}
+.ck.a{background:var(--a)} .ck.b{background:var(--b)} .ck.ab{background:var(--ab)}
+
+/* Pause + playlist */
+.wo-tools{gap:8px;margin-top:10px}
+.clock.paused{color:var(--muted)}
+.paused-note{display:flex;gap:10px;align-items:center;margin-top:10px;padding:10px 12px;border-radius:var(--r10);background:var(--sunk);font-size:.92rem}
+.pl-card{display:flex;gap:12px;align-items:center;padding:14px;border-radius:var(--r10);background:var(--sunk)}
+.pl-card>span:last-child{display:flex;flex-direction:column}
+.pl-ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#1db954;color:#fff;flex:none}
+.segbar.where{margin-bottom:4px}

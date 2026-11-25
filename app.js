@@ -1,4 +1,4 @@
-import { CATS, CAT_ORDER, EQ, EQ_GROUPS, WHERE, EX, EXM } from "./exercises.js";
+import { CATS, CAT_ORDER, EQ, EQ_GROUPS, HOME_EQ, WHERE, EX, EXM } from "./exercises.js";
 import { firebaseConfig } from "./config.js";
 
 /* ================= Icons ================= */
@@ -43,6 +43,10 @@ const IC = {
   back:'<path d="M4 4l4 17h8l4-17M8 8l4 3 4-3M12 11v10"/>',
   shoulders:'<circle cx="12" cy="5" r="2.5"/><path d="M3 19v-3a6 6 0 0 1 6-6h6a6 6 0 0 1 6 6v3"/>',
   arms:'<path d="M4 20c0-6 2-10 6-12l2-4 3 1-1 4c3 0 6 2 6 6 0 3-3 5-7 5z"/>',
+  pause:'<path d="M8 5v14M16 5v14"/>',
+  music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  home:'<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/>',
+  ext:'<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
 };
 const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
@@ -220,6 +224,9 @@ function suggest(a, ex, excludeId) {
   return { w: top, tgt, last, tip: atTop.some(s => +s.r < t.lo) ? `Stay at ${fmtW(top)} lb and own the range.` : `Stay at ${fmtW(top)} lb, one more rep per set.` };
 }
 const volume = (w, a) => { let v = 0, n = 0; for (const [, e] of exList(w)) for (const s of workSets(e, a)) { v += (+s.w || 0) * (+s.r || 0); n++; } return { v, n }; };
+// Active time: wall time minus any paused stretches.
+const durOf = w => { const end = w.finishedAt || Date.now(); return end - w.startedAt - (w.pausedMs || 0) - (w.pausedAt ? end - w.pausedAt : 0); };
+const elapsedAttrs = w => `data-elapsed="${w.startedAt + (w.pausedMs || 0)}"${w.pausedAt ? ` data-paused="${w.pausedAt}"` : ""}`;
 const catTitle = w => (CATS[w.focus] && CATS[w.focus].n) || w.title || "Workout";
 function catLast(a, cat) { for (const w of sorted()) if (w.focus === cat && (w.athletes || []).includes(a) && volume(w, a).n) return w.startedAt; return null; }
 function catCounts(a, cat) { const c = { g: 0, y: 0, r: 0, l: 0 }; EX.filter(e => e.cat === cat).forEach(e => c[badge(a, e.id).s]++); return c; }
@@ -229,25 +236,29 @@ function optState(a, cat, opt) { const rank = { g: 3, y: 2, r: 1, l: 0 }; let b 
 /* ================= Plan builder ================= */
 function buildPlan(p) {
   const rnd = rng(dstr(Date.now()) + p.cat + p.salt);
-  const allowed = p.eqs.flatMap(g => EQ_GROUPS[g].eq);
+  const home = p.where === "home";
+  const allowed = home ? HOME_EQ : p.eqs.flatMap(g => EQ_GROUPS[g].eq);
   let pool = EX.filter(e => e.cat === p.cat && p.opts.includes(e.opt) && allowed.includes(e.eq));
-  if (pool.length < p.n) pool = EX.filter(e => e.cat === p.cat && p.opts.includes(e.opt));
+  // At home, widen the focus areas rather than adding equipment you don't have.
+  if (pool.length < p.n) pool = home ? EX.filter(e => e.cat === p.cat && HOME_EQ.includes(e.eq)) : EX.filter(e => e.cat === p.cat && p.opts.includes(e.opt));
   const score = e => { let s = rnd() * 2.2 + (e.t === "c" ? .35 : 0); for (const a of p.athletes) { const st = badge(a, e.id).s; s += st === "r" ? 1.5 : st === "y" ? 1.1 : st === "l" ? .5 : -.7; } return s; };
-  const by = {}; p.opts.forEach(o => { by[o] = pool.filter(e => e.opt === o).map(e => ({ id: e.id, s: score(e) })).sort((x, y) => y.s - x.s); });
+  const extra = [...new Set(pool.map(e => e.opt))].filter(o => !p.opts.includes(o));
+  const by = {}; [...p.opts, ...extra].forEach(o => { by[o] = pool.filter(e => e.opt === o).map(e => ({ id: e.id, s: score(e) })).sort((x, y) => y.s - x.s); });
   const picked = (p.force || []).filter(id => EXM[id]);
-  while (picked.length < p.n) { let added = false; for (const o of p.opts) { if (picked.length >= p.n) break; const nx = (by[o] || []).find(x => !picked.includes(x.id)); if (nx) { picked.push(nx.id); added = true; } } if (!added) break; }
+  // Chosen focus areas first; other areas only fill whatever is still short.
+  for (const opts of [p.opts, extra]) while (picked.length < p.n) { let added = false; for (const o of opts) { if (picked.length >= p.n) break; const nx = (by[o] || []).find(x => !picked.includes(x.id)); if (nx) { picked.push(nx.id); added = true; } } if (!added) break; }
   return picked.sort((x, y) => (EXM[x].t === "c" ? 0 : 1) - (EXM[y].t === "c" ? 0 : 1));
 }
 function newPlan(cat, force) {
   const prefs = lsGet("spotme.prefs." + cat, null);
   const opts = prefs && prefs.opts && prefs.opts.length ? prefs.opts.filter(o => CATS[cat].opts[o]) : Object.keys(CATS[cat].opts);
-  const p = { cat, opts: opts.length ? opts : Object.keys(CATS[cat].opts), eqs: (prefs && prefs.eqs && prefs.eqs.length) ? prefs.eqs : Object.keys(EQ_GROUPS), n: (prefs && prefs.n) || 5, athletes: (prefs && prefs.athletes) || ["a", "b"], salt: 0, force: force ? [force] : [] };
+  const p = { cat, opts: opts.length ? opts : Object.keys(CATS[cat].opts), eqs: (prefs && prefs.eqs && prefs.eqs.length) ? prefs.eqs : Object.keys(EQ_GROUPS), n: (prefs && prefs.n) || 5, athletes: (prefs && prefs.athletes) || ["a", "b"], salt: 0, force: force ? [force] : [], where: lsGet("spotme.where", "gym") };
   p.items = buildPlan(p); return p;
 }
-const alternatives = (id, exclude) => { const ex = EXM[id]; return EX.filter(e => e.id !== id && e.cat === ex.cat && !(exclude || []).includes(e.id)).sort((x, y) => (x.opt === ex.opt ? 0 : 1) - (y.opt === ex.opt ? 0 : 1) || (x.t === ex.t ? 0 : 1) - (y.t === ex.t ? 0 : 1)); };
+const alternatives = (id, exclude, where) => { const ex = EXM[id]; return EX.filter(e => e.id !== id && e.cat === ex.cat && !(exclude || []).includes(e.id) && (where !== "home" || HOME_EQ.includes(e.eq))).sort((x, y) => (x.opt === ex.opt ? 0 : 1) - (y.opt === ex.opt ? 0 : 1) || (x.t === ex.t ? 0 : 1) - (y.t === ex.t ? 0 : 1)); };
 
 /* ================= App state & routing ================= */
-const state = { view: lsGet("spotme.view", lsGet("spotme.me", "a")), plan: lsGet("spotme.plan", null), openHist: null, confirmDel: null, confirmDiscard: false, libQ: "", libC: "", progEx: null, showTable: false, rest: null, bFilter: "all" };
+const state = { view: lsGet("spotme.view", lsGet("spotme.me", "a")), plan: lsGet("spotme.plan", null), openHist: null, confirmDel: null, confirmDiscard: false, libQ: "", libC: "", progEx: null, showTable: false, rest: null, bFilter: "all", histMode: lsGet("spotme.histMode", "cal"), calMonth: null, calDay: null };
 if (state.plan && (!state.plan.cat || !CATS[state.plan.cat])) state.plan = null;
 const savePlan = () => lsSet("spotme.plan", state.plan);
 const ROUTES = ["train", "plan", "workout", "badges", "history", "progress", "library"];
@@ -296,7 +307,7 @@ function render() {
 /* ================= Views ================= */
 function vTrain() {
   const a = state.view, act = activeWorkout(); let h = "";
-  if (act) { const n = ["a", "b"].reduce((s, x) => s + volume(act, x).n, 0); h += `<div class="resume"><div><div class="eyebrow">Workout in progress</div><h3>${esc(catTitle(act))}</h3><div class="num" style="opacity:.75;font-size:.9rem"><span data-elapsed="${act.startedAt}"></span> · ${n} sets logged</div></div><a class="btn block" href="#workout">${ic("play")}Resume workout</a></div>`; }
+  if (act) { const n = ["a", "b"].reduce((s, x) => s + volume(act, x).n, 0); h += `<div class="resume"><div><div class="eyebrow">Workout in progress</div><h3>${esc(catTitle(act))}</h3><div class="num" style="opacity:.75;font-size:.9rem"><span ${elapsedAttrs(act)}></span>${act.pausedAt ? " · Paused" : ""} · ${n} sets logged</div></div><a class="btn block" href="#workout">${ic("play")}Resume workout</a></div>`; }
   else if (state.plan) h += `<div class="resume"><div><div class="eyebrow">Planned</div><h3>${esc(CATS[state.plan.cat].n)}</h3><div style="opacity:.75;font-size:.9rem">${state.plan.items.length} exercises ready</div></div><a class="btn block" href="#plan">${ic("list")}Open plan</a></div>`;
   const sug = suggestCat(a);
   h += `<section><div class="sec-h"><h2>${ic("bolt")}Pick a workout</h2><span class="hint">for ${esc(nameOf(a))}</span></div><div class="cats">` + CAT_ORDER.map(c => {
@@ -305,6 +316,7 @@ function vTrain() {
     return `<button class="cat${c === sug ? " next" : ""}" data-act="cat" data-c="${c}">${c === sug ? '<span class="flag">Up next</span>' : ""}<span class="ci">${ic(c)}</span><span><b>${CATS[c].n}</b><div class="sub">${last ? "Last done " + agoText(last) : "Not done yet"} · ${tot} moves${parts.length ? "<br>" + parts.join(" · ") : ""}</div>
     <div class="fbar" aria-hidden="true">${["g", "y", "r", "l"].map(k => cc[k] ? `<i class="${k}" style="flex:${cc[k]}"></i>` : "").join("")}</div></span><span class="chev">${ic("chev")}</span></button>`;
   }).join("") + `</div></section>`;
+  h += `<button class="btn block" data-act="playlist">${ic("music")}Suggest a Spotify playlist</button>`;
   const ws = weekStart(Date.now());
   h += `<section><div class="sec-h"><h2>${ic("calendar")}This week</h2></div><div class="week">` + ["a", "b"].map(x => {
     const wk = sorted().filter(w => w.startedAt >= ws && (w.athletes || []).includes(x) && volume(w, x).n > 0);
@@ -319,8 +331,9 @@ function vPlan() {
   const C = CATS[p.cat];
   let h = `<section><div class="row" style="justify-content:space-between"><button class="btn ghost small" data-act="cancel-plan" style="padding-left:0">${ic("backArrow")}Back</button></div>
   <div class="row" style="gap:12px"><span class="ci" style="width:48px;height:48px;border-radius:12px;background:var(--sunk);display:grid;place-items:center">${ic(p.cat)}</span><h1>${C.n} day</h1></div></section>
-  <section><div class="label">${mi("list")}Focus on</div><div class="chips">${Object.entries(C.opts).map(([k, n]) => `<button class="chip" data-act="p-opt" data-k="${k}" aria-pressed="${p.opts.includes(k)}">${esc(n)}</button>`).join("")}</div>
-  <div class="label">${mi("barbell")}Equipment</div><div class="chips">${Object.entries(EQ_GROUPS).map(([k, g]) => `<button class="chip" data-act="p-eq" data-k="${k}" aria-pressed="${p.eqs.includes(k)}">${mi(g.eq[0])}${g.n}</button>`).join("")}</div>
+  <section><div class="segbar where"><button data-act="p-where" data-w="gym" aria-pressed="${p.where !== "home"}">${ic("dumbbell")}Gym</button><button data-act="p-where" data-w="home" aria-pressed="${p.where === "home"}">${ic("home")}Home</button></div>
+  <div class="label">${mi("list")}Focus on</div><div class="chips">${Object.entries(C.opts).map(([k, n]) => `<button class="chip" data-act="p-opt" data-k="${k}" aria-pressed="${p.opts.includes(k)}">${esc(n)}</button>`).join("")}</div>
+  ${p.where === "home" ? `<div class="label">${mi("home")}Home equipment</div><div class="chips">${HOME_EQ.map(eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`).join("")}</div><div class="meta">A shorter list for home. The full home equipment list can be added later.</div>` : `<div class="label">${mi("barbell")}Equipment</div><div class="chips">${Object.entries(EQ_GROUPS).map(([k, g]) => `<button class="chip" data-act="p-eq" data-k="${k}" aria-pressed="${p.eqs.includes(k)}">${mi(g.eq[0])}${g.n}</button>`).join("")}</div>`}
   <div class="label">${mi("timer")}How many exercises</div><div class="segbar">${[3, 4, 5, 6, 7].map(n => `<button data-act="p-n" data-n="${n}" aria-pressed="${p.n === n}">${n}</button>`).join("")}</div>
   <div class="label">${mi("users")}Who's lifting</div><div class="chips">${["a", "b"].map(a => `<button class="chip" data-act="p-who" data-a="${a}" aria-pressed="${p.athletes.includes(a)}">${av(a)}${esc(nameOf(a))}</button>`).join("")}</div></section>`;
   h += `<section><div class="sec-h"><h2>${ic("list")}Today's moves</h2><span class="hint">Due and overdue badges are picked first</span></div>`;
@@ -348,7 +361,10 @@ function vWorkout() {
   // Log one person at a time; the toggle switches whose sets are shown.
   if (!ath.includes(state.logWho)) state.logWho = ath.includes(state.view) ? state.view : ath[0];
   const cur = state.logWho;
-  let h = `<section><div class="wo-head"><div><div class="eyebrow">${new Date(w.startedAt).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</div><h1>${esc(catTitle(w))}</h1></div><div class="clock num" data-elapsed="${w.startedAt}"></div></div></section>
+  const paused = !!w.pausedAt;
+  let h = `<section><div class="wo-head"><div><div class="eyebrow">${new Date(w.startedAt).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}${w.where === "home" ? " · Home" : ""}</div><h1>${esc(catTitle(w))}</h1></div><div class="clock num${paused ? " paused" : ""}" ${elapsedAttrs(w)}></div></div>
+  <div class="row wo-tools">${paused ? `<button class="btn small primary" data-act="unpause">${ic("play")}Resume</button>` : `<button class="btn small" data-act="pause">${ic("pause")}Pause</button>`}<button class="btn small" data-act="playlist" data-c="${w.focus}">${ic("music")}Playlist</button></div>
+  ${paused ? `<div class="paused-note">${ic("pause")}<span><b>Workout paused.</b> The clock is stopped. Tap Resume when you're back.</span></div>` : ""}</section>
   <div class="who-tog${ath.length > 1 ? "" : " solo"}" role="group" aria-label="Whose sets to log">${ath.map(a => { const v = volume(w, a); return `<button data-act="log-who" data-a="${a}" aria-pressed="${a === cur}">${av(a, 34)}<span><b>${esc(nameOf(a))}</b><span class="num">${v.n} set${v.n === 1 ? "" : "s"} · ${fmtN(v.v)} lb</span></span></button>`; }).join("")}</div><section>`;
   for (const [k, e] of exList(w)) {
     const ex = EXM[e.id];
@@ -427,19 +443,53 @@ function ringSvgBig(b) { const size = 84, sw = 9, r = (size - sw) / 2, C = 2 * M
 function vHistory() {
   const list = sorted().filter(w => w.finishedAt);
   if (!list.length) return `<section><h2>${ic("calendar")}History</h2><div class="empty"><b>No finished workouts yet</b><span>Pick a workout on the Train tab, log your sets and tap Finish.</span><a class="btn primary" href="#train">Start training</a></div></section>`;
-  let h = `<section><div class="sec-h"><h2>${ic("calendar")}History</h2><span class="hint num">${list.length} workouts</span></div><div class="hist">`, month = "";
+  const mode = state.histMode;
+  let h = `<section><div class="sec-h"><h2>${ic("calendar")}History</h2><span class="hint num">${list.length} workouts</span></div>
+  <div class="segbar"><button data-act="hist-mode" data-m="cal" aria-pressed="${mode === "cal"}">${ic("calendar")}Calendar</button><button data-act="hist-mode" data-m="list" aria-pressed="${mode === "list"}">${ic("list")}List</button></div>`;
+  if (mode === "cal") return h + vCal(list) + `</section>`;
+  h += `<div class="hist">`; let month = "";
   for (const w of list) {
     const m = new Date(w.startedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" });
     if (m !== month) { month = m; h += `<div class="eyebrow" style="margin-top:8px">${esc(m)}</div>`; }
-    const d = new Date(w.startedAt), open = state.openHist === w.id, ath = w.athletes || [];
-    h += `<div class="h-item"><button class="h-sum" data-act="hist" data-id="${w.id}" aria-expanded="${open}"><span class="h-date"><b class="num">${d.getDate()}</b><span>${d.toLocaleDateString(undefined, { weekday: "short" })}</span></span><span><b style="font-family:var(--display);font-size:1.2rem;text-transform:uppercase">${esc(catTitle(w))}</b><br><span class="meta num">${fmtDur(w.finishedAt - w.startedAt)} · ${ath.map(a => esc(nameOf(a)) + " " + volume(w, a).n + " sets").join(" · ")}</span></span><span>${ath.map(a => `${av(a)}`).join(" ")}</span></button>`;
-    if (open) {
-      h += `<div class="h-body">` + exList(w).map(([, e]) => { const ex = EXM[e.id]; const rows = ath.map(a => { const s = workSets(e, a); return s.length ? `<div>${av(a)}<span class="num">${s.map(x => fmtW(x.w) + "×" + x.r).join(", ")}</span></div>` : ""; }).join(""); return rows || e.note ? `<div class="h-ex"><b>${esc(ex.n)}</b>${rows}${e.note ? `<div><i>${esc(e.note)}</i></div>` : ""}</div>` : ""; }).join("") +
-        `<div class="row"><button class="btn small" data-act="repeat" data-id="${w.id}">${ic("repeat")}Repeat</button>${state.confirmDel === w.id ? `<button class="btn small danger" data-act="del-yes" data-id="${w.id}">${ic("trash")}Delete for good</button><button class="btn small ghost" data-act="del-no">Keep</button>` : `<button class="btn small ghost danger" data-act="del" data-id="${w.id}">${ic("trash")}Delete</button>`}</div></div>`;
-    }
-    h += `</div>`;
+    h += histItem(w, state.openHist === w.id);
   }
   return h + `</div></section>`;
+}
+// Who actually lifted in a workout: people with logged sets, else everyone on it.
+function whoOf(w) { const ath = w.athletes || []; const did = ath.filter(a => volume(w, a).n > 0); return did.length ? did : ath; }
+function histItem(w, open) {
+  const d = new Date(w.startedAt), ath = w.athletes || [];
+  let h = `<div class="h-item"><button class="h-sum" data-act="hist" data-id="${w.id}" aria-expanded="${open}"><span class="h-date"><b class="num">${d.getDate()}</b><span>${d.toLocaleDateString(undefined, { weekday: "short" })}</span></span><span><b style="font-family:var(--display);font-size:1.2rem;text-transform:uppercase">${esc(catTitle(w))}</b>${w.where === "home" ? ` <span class="pill">${mi("home")}Home</span>` : ""}<br><span class="meta num">${fmtDur(durOf(w))} · ${ath.map(a => esc(nameOf(a)) + " " + volume(w, a).n + " sets").join(" · ")}</span></span><span>${ath.map(a => `${av(a)}`).join(" ")}</span></button>`;
+  if (open) {
+    h += `<div class="h-body">` + exList(w).map(([, e]) => { const ex = EXM[e.id]; const rows = ath.map(a => { const s = workSets(e, a); return s.length ? `<div>${av(a)}<span class="num">${s.map(x => fmtW(x.w) + "×" + x.r).join(", ")}</span></div>` : ""; }).join(""); return rows || e.note ? `<div class="h-ex"><b>${esc(ex.n)}</b>${rows}${e.note ? `<div><i>${esc(e.note)}</i></div>` : ""}</div>` : ""; }).join("") +
+      `<div class="row"><button class="btn small" data-act="repeat" data-id="${w.id}">${ic("repeat")}Repeat</button>${state.confirmDel === w.id ? `<button class="btn small danger" data-act="del-yes" data-id="${w.id}">${ic("trash")}Delete for good</button><button class="btn small ghost" data-act="del-no">Keep</button>` : `<button class="btn small ghost danger" data-act="del" data-id="${w.id}">${ic("trash")}Delete</button>`}</div></div>`;
+  }
+  return h + `</div>`;
+}
+function vCal(list) {
+  const now = new Date(), cur = state.calMonth || (now.getFullYear() * 12 + now.getMonth());
+  const y = Math.floor(cur / 12), mo = cur % 12, first = new Date(y, mo, 1), days = new Date(y, mo + 1, 0).getDate();
+  const byDay = {};
+  for (const w of list) { const k = dstr(w.startedAt); (byDay[k] = byDay[k] || { w: [], who: new Set() }).w.push(w); whoOf(w).forEach(a => byDay[k].who.add(a)); }
+  const inMonth = list.filter(w => { const d = new Date(w.startedAt); return d.getFullYear() === y && d.getMonth() === mo; });
+  if (!state.calDay || !state.calDay.startsWith(y + "-" + String(mo + 1).padStart(2, "0"))) state.calDay = inMonth.length ? dstr(inMonth[0].startedAt) : null;
+  const lead = (first.getDay() + 6) % 7, today = dstr(Date.now()), isNow = cur === now.getFullYear() * 12 + now.getMonth();
+  const label = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const kind = s => s.has("a") && s.has("b") ? "ab" : s.has("b") ? "b" : "a";
+  const kindN = { a: nameOf("a"), b: nameOf("b"), ab: "Both" };
+  let h = `<div class="cal"><div class="cal-nav"><button class="icon-btn" data-act="cal-mv" data-d="-1" aria-label="Previous month">${ic("backArrow")}</button><b>${esc(label)}</b><button class="icon-btn" data-act="cal-mv" data-d="1" aria-label="Next month" ${isNow ? "disabled" : ""}>${ic("chev")}</button></div>
+  <div class="cal-grid">${["M", "T", "W", "T", "F", "S", "S"].map(d => `<span class="cal-wd">${d}</span>`).join("")}${"<span></span>".repeat(lead)}`;
+  for (let d = 1; d <= days; d++) {
+    const k = y + "-" + String(mo + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0"), e = byDay[k];
+    if (!e) { h += `<span class="cal-d${k === today ? " today" : ""}"><span class="num">${d}</span></span>`; continue; }
+    const kd = kind(e.who);
+    h += `<button class="cal-d on ${kd}${k === today ? " today" : ""}" data-act="cal-day" data-d="${k}" aria-pressed="${state.calDay === k}" aria-label="${esc(new Date(y, mo, d).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }))}: ${esc(kindN[kd])}, ${e.w.map(w => esc(catTitle(w))).join(", ")}"><span class="num">${d}</span></button>`;
+  }
+  h += `</div><div class="cal-key"><span><i class="ck a"></i>${av("a", 18)}${esc(nameOf("a"))}</span><span><i class="ck b"></i>${av("b", 18)}${esc(nameOf("b"))}</span><span><i class="ck ab"></i>Both</span><span class="meta num" style="margin-left:auto">${inMonth.length} this month</span></div></div>`;
+  const sel = state.calDay && byDay[state.calDay];
+  if (sel) h += `<div class="eyebrow" style="margin-top:4px">${esc(new Date(sel.w[0].startedAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }))}</div><div class="hist">${sel.w.map(w => histItem(w, sel.w.length === 1 || state.openHist === w.id)).join("")}</div>`;
+  else h += `<div class="meta" style="text-align:center">No workouts this month.</div>`;
+  return h;
 }
 
 /* --- Progress --- */
@@ -612,7 +662,45 @@ function summarySheet(w) {
       let prev = 0, had = false; for (const x of sorted()) { if (x.startedAt >= before) continue; for (const [, e2] of exList(x)) if (e2.id === e.id) for (const s of workSets(e2, a)) { had = true; prev = Math.max(prev, metric(ex, s)); } }
       if (!had) newB.push(ex.n); else if (b > prev + .01) prs.push(ex.n + " " + fmtW(bs.w) + "×" + bs.r); }
     return `<div class="wk"><div class="who">${av(a)}<span class="t">${esc(nameOf(a))}</span></div><dl><div><dt>Sets</dt><dd class="num">${v.n}</dd></div><div><dt>Lb</dt><dd class="num">${fmtN(v.v)}</dd></div><div><dt>PRs</dt><dd class="num">${prs.length}</dd></div></dl>${newB.map(n => `<div class="pr-flag">${mi("medal")} New badge: ${esc(n)}</div>`).join("")}${prs.map(p => `<div class="pr-flag">${mi("trophy")} Best ever: ${esc(p)}</div>`).join("")}</div>`; }).join("");
-  openSheet(`<div class="sheet-top"><div><div class="eyebrow">Workout complete · ${fmtDur(w.finishedAt - w.startedAt)}</div><h1>${esc(catTitle(w))} done</h1></div>${closeBtn}</div><div class="prs">${rows}</div><p class="meta" style="margin:0">Every exercise you logged has its badge refilled.</p><a class="btn primary block" href="#badges" data-act="close">${ic("medal")}See badges</a>`);
+  openSheet(`<div class="sheet-top"><div><div class="eyebrow">Workout complete · ${fmtDur(durOf(w))}</div><h1>${esc(catTitle(w))} done</h1></div>${closeBtn}</div><div class="prs">${rows}</div><p class="meta" style="margin:0">Every exercise you logged has its badge refilled.</p><a class="btn primary block" href="#badges" data-act="close">${ic("medal")}See badges</a>`);
+}
+
+/* ================= Playlist ideas ================= */
+// Opens a Spotify playlist search, so results stay current without an API key.
+const PLAYLISTS = [
+  { n: "Beast Mode", q: "beast mode workout", v: "Hard-hitting hip hop and trap" },
+  { n: "Heavy Metal Lifting", q: "metal gym", v: "Loud riffs for heavy sets" },
+  { n: "Pop Workout", q: "pop workout", v: "Upbeat chart hits" },
+  { n: "EDM Gym", q: "edm gym", v: "Big drops, steady tempo" },
+  { n: "Rock Workout Classics", q: "classic rock workout", v: "AC/DC-era energy" },
+  { n: "90s Hip Hop Workout", q: "90s hip hop workout", v: "Boom bap throwbacks" },
+  { n: "Throwback Workout", q: "2000s workout throwback", v: "2000s sing-alongs" },
+  { n: "Country Workout", q: "country workout", v: "Upbeat country" },
+  { n: "Latin Workout", q: "reggaeton workout", v: "Reggaeton and Latin pop" },
+  { n: "Phonk Gym", q: "phonk gym", v: "Dark, bass-heavy phonk" },
+  { n: "Drum and Bass Gym", q: "drum and bass gym", v: "Fast breaks for conditioning" },
+  { n: "Indie Workout", q: "indie workout", v: "Bright indie and alt" },
+  { n: "Rap Gym", q: "rap gym motivation", v: "New-school rap" },
+  { n: "Pump Up Rock", q: "hard rock pump up", v: "Modern hard rock" },
+  { n: "Leg Day", q: "leg day", v: "Loud enough for squats", c: "legs" },
+  { n: "Back Day", q: "back day gym", v: "Pull-day anthems", c: "back" },
+  { n: "Chest Day", q: "chest day", v: "Bench-press hype", c: "chest" },
+  { n: "Arm Day Pump", q: "arm day pump", v: "Pump-chasing playlist", c: "arms" },
+  { n: "Shoulder Day", q: "shoulder day gym", v: "Press-day energy", c: "shoulders" },
+  { n: "Home Workout", q: "home workout", v: "Good for the garage or living room", home: true },
+];
+function playlistSheet(cat) {
+  // Prefer a category or home playlist about a third of the time, never the same one twice in a row.
+  const special = PLAYLISTS.filter(p => (cat && p.c === cat) || (p.home && (activeWorkout() || {}).where === "home"));
+  let pick;
+  do { pick = special.length && Math.random() < .35 ? special[Math.floor(Math.random() * special.length)] : PLAYLISTS[Math.floor(Math.random() * PLAYLISTS.length)]; } while (PLAYLISTS.length > 1 && pick === state.lastPlaylist);
+  state.lastPlaylist = pick;
+  const url = "https://open.spotify.com/search/" + encodeURIComponent(pick.q) + "/playlists";
+  openSheet(`<div class="sheet-top"><div><div class="eyebrow">Playlist idea</div><h2>${esc(pick.n)}</h2></div>${closeBtn}</div>
+  <div class="pl-card"><span class="pl-ic">${ic("music")}</span><span><b>${esc(pick.n)}</b><span class="meta">${esc(pick.v)}</span></span></div>
+  <a class="btn primary block" href="${url}" target="_blank" rel="noopener">${ic("ext")}Find it on Spotify</a>
+  <button class="btn block" data-act="playlist" data-c="${esc(cat)}">${ic("shuffle")}Suggest another</button>
+  <p class="meta" style="margin:0;text-align:center">Opens Spotify's playlist search for "${esc(pick.q)}".</p>`);
 }
 
 /* ================= Rest timer ================= */
@@ -631,7 +719,7 @@ function renderRest() {
   if (left <= 0 && !r.beeped) { r.beeped = true; beep(); }
   if (left < -120) { state.rest = null; renderRest(); }
 }
-function tick() { document.querySelectorAll("[data-elapsed]").forEach(el => { const ms = Date.now() - +el.dataset.elapsed, m = Math.floor(ms / 60000), s = Math.floor(ms / 1000) % 60; el.textContent = m >= 60 ? Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0") + ":" + String(s).padStart(2, "0") : m + ":" + String(s).padStart(2, "0"); }); if (state.rest) renderRest(); }
+function tick() { document.querySelectorAll("[data-elapsed]").forEach(el => { const ms = (el.dataset.paused ? +el.dataset.paused : Date.now()) - +el.dataset.elapsed, m = Math.floor(ms / 60000), s = Math.floor(ms / 1000) % 60; el.textContent = m >= 60 ? Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0") + ":" + String(s).padStart(2, "0") : m + ":" + String(s).padStart(2, "0"); }); if (state.rest) renderRest(); }
 setInterval(tick, 1000);
 let wakeLock = null;
 async function keepAwake(on) { try { if (on && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } else if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; } } catch (e) { wakeLock = null; } }
@@ -646,7 +734,7 @@ function startWorkout() {
   const p = state.plan; if (!p || !p.items.length || !p.athletes.length) return;
   if (activeWorkout()) { toast("Finish or discard the workout in progress first."); go("workout"); return; }
   const id = uid("w"), ex = {}; p.items.forEach((exId, i) => { ex["e" + i] = newEntry(exId, p.athletes, i, id); });
-  Store.create({ id, focus: p.cat, opts: p.opts, athletes: p.athletes.slice(), startedAt: Date.now(), finishedAt: null, date: dstr(Date.now()), ex });
+  Store.create({ id, focus: p.cat, opts: p.opts, athletes: p.athletes.slice(), where: p.where === "home" ? "home" : "gym", startedAt: Date.now(), finishedAt: null, date: dstr(Date.now()), ex });
   state.plan = null; savePlan(); keepAwake(true); go("workout");
 }
 function parseJoin(v) { const m = String(v || "").match(/join=([A-Za-z0-9]{20,})/) || String(v || "").trim().match(/^([A-Za-z0-9]{20,})$/); return m ? m[1] : null; }
@@ -667,7 +755,7 @@ document.addEventListener("click", ev => {
     case "p-shuffle": p.salt = (p.salt || 0) + 1; p.force = []; rebuildPlan(); break;
     case "p-rm": p.items.splice(+b.dataset.i, 1); savePlan(); render(); break;
     case "p-up": { const i = +b.dataset.i; if (i > 0) { [p.items[i - 1], p.items[i]] = [p.items[i], p.items[i - 1]]; savePlan(); render(); } break; }
-    case "p-swap": { const i = +b.dataset.i, cur = p.items[i]; pickSheet("Swap " + EXM[cur].n, alternatives(cur, p.items).map(e => e.id), id => { p.items[i] = id; savePlan(); render(); }); break; }
+    case "p-swap": { const i = +b.dataset.i, cur = p.items[i]; pickSheet("Swap " + EXM[cur].n, alternatives(cur, p.items, p.where).map(e => e.id), id => { p.items[i] = id; savePlan(); render(); }); break; }
     case "p-add": state.libC = p.cat; pickSheet("Add an exercise", null, id => { if (!p.items.includes(id)) p.items.push(id); savePlan(); render(); }); break;
     case "start": startWorkout(); break;
     case "howto": howTo(b.dataset.id); break;
@@ -685,9 +773,9 @@ document.addEventListener("click", ev => {
     case "rm-set": { if (!w) break; const { k, a } = b.dataset, log = logOf(w, k, a); log.pop(); setLog(w, k, a, log); render(); break; }
     case "plates": { if (!w) break; const { k, a } = b.dataset, log = (w.ex[k].log && w.ex[k].log[a]) || [], cur = log.find(s => !s.d) || log[log.length - 1]; platesSheet(cur && cur.w ? +cur.w : 0); break; }
     case "wo-add": if (!w) break; state.libC = w.focus || ""; pickSheet("Add an exercise", null, id => { const o = Math.max(-1, ...Object.values(w.ex || {}).map(e => e.o || 0)) + 1, k = "e" + Date.now().toString(36); Store.patch(w.id, { ex: { [k]: newEntry(id, w.athletes, o, w.id) } }, 250); render(); setTimeout(() => { const el = document.getElementById("ex-" + k); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); }); break;
-    case "wo-swap": { if (!w) break; const k = b.dataset.k, cur = w.ex[k].id; pickSheet("Swap " + EXM[cur].n, alternatives(cur, exList(w).map(([, e]) => e.id)).map(e => e.id), id => { const ent = newEntry(id, w.athletes, w.ex[k].o, w.id); Store.patch(w.id, { ex: { [k]: { id, log: ent.log } } }, 250); render(); }); break; }
+    case "wo-swap": { if (!w) break; const k = b.dataset.k, cur = w.ex[k].id; pickSheet("Swap " + EXM[cur].n, alternatives(cur, exList(w).map(([, e]) => e.id), w.where).map(e => e.id), id => { const ent = newEntry(id, w.athletes, w.ex[k].o, w.id); Store.patch(w.id, { ex: { [k]: { id, log: ent.log } } }, 250); render(); }); break; }
     case "wo-rm": if (!w) break; Store.patch(w.id, { ex: { [b.dataset.k]: { removed: true } } }, 250); render(); break;
-    case "finish": { if (!w) break; Store.patch(w.id, { finishedAt: Date.now() }, 0); Store.bump(); state.rest = null; keepAwake(false); state.openHist = w.id; go("history"); summarySheet(Store.workouts[w.id]); break; }
+    case "finish": { if (!w) break; const now = Date.now(); Store.patch(w.id, w.pausedAt ? { finishedAt: now, pausedAt: null, pausedMs: (w.pausedMs || 0) + (now - w.pausedAt) } : { finishedAt: now }, 0); Store.bump(); state.rest = null; keepAwake(false); state.openHist = w.id; go("history"); summarySheet(Store.workouts[w.id]); break; }
     case "discard": state.confirmDiscard = true; render(); break;
     case "discard-no": state.confirmDiscard = false; render(); break;
     case "discard-yes": if (w) Store.remove(w.id); state.confirmDiscard = false; state.rest = null; keepAwake(false); go("train"); break;
@@ -707,6 +795,13 @@ document.addEventListener("click", ev => {
     case "export": { const blob = new Blob([JSON.stringify({ app: "spot-me", v: 1, exported: new Date().toISOString(), settings: S(), workouts: Store.workouts }, null, 1)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "spot-me-backup-" + dstr(Date.now()) + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); break; }
     case "welcome-join": { const v = $("#w-code").value, hid = parseJoin(v); if (!hid) { toast("That doesn't look like an invite link or code."); break; } closeSheet(true); handleJoin(hid, joinWho(v)); break; }
     case "log-who": state.logWho = b.dataset.a; render(); break;
+    case "hist-mode": state.histMode = b.dataset.m; lsSet("spotme.histMode", state.histMode); render(); break;
+    case "cal-mv": { const n = new Date(); state.calMonth = (state.calMonth || n.getFullYear() * 12 + n.getMonth()) + +b.dataset.d; state.calDay = null; state.openHist = null; render(); break; }
+    case "cal-day": state.calDay = b.dataset.d; state.openHist = null; state.confirmDel = null; render(); break;
+    case "pause": if (!w || w.pausedAt) break; Store.patch(w.id, { pausedAt: Date.now() }, 0); state.rest = null; keepAwake(false); render(); break;
+    case "unpause": if (!w || !w.pausedAt) break; Store.patch(w.id, { pausedAt: null, pausedMs: (w.pausedMs || 0) + (Date.now() - w.pausedAt) }, 0); keepAwake(true); render(); break;
+    case "playlist": playlistSheet(b.dataset.c || (w && w.focus) || ""); break;
+    case "p-where": p.where = b.dataset.w; lsSet("spotme.where", p.where); p.force = []; rebuildPlan(); break;
   }
 });
 $("#gear").addEventListener("click", settingsSheet);

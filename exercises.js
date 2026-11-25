@@ -9,6 +9,8 @@ export const CATS = {
 export const CAT_ORDER = ["back", "legs", "arms", "chest", "shoulders"];
 export const EQ = { barbell: "Barbell", dumbbell: "Dumbbells", machine: "Machine", cable: "Cable", bodyweight: "Bodyweight" };
 export const EQ_GROUPS = { free: { n: "Free weights", eq: ["barbell", "dumbbell"] }, machine: { n: "Machines", eq: ["machine"] }, cable: { n: "Cables", eq: ["cable"] }, bodyweight: { n: "Bodyweight", eq: ["bodyweight"] } };
+// Home gym equipment. Placeholder until the real home equipment list is added.
+export const HOME_EQ = ["dumbbell", "bodyweight"];
 export const WHERE = {
   barbell: "Squat racks, bench stations or a platform in the free-weight area.",
   dumbbell: "The dumbbell racks; grab a bench if the move needs one.",
