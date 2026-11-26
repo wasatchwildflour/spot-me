@@ -56,7 +56,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 14; // keep in step with CACHE in sw.js
+const APP_VERSION = 15; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
@@ -347,7 +347,7 @@ function render() {
 // Page title: a colored icon tile + big heading. Colors live in styles.css as --pc-<page>.
 const pageTitle = (page, icon, text, extra = "") => `<div class="page-h"><h1 class="pt"><span class="pt-ic ${page}">${ic(icon)}</span>${esc(text)}</h1>${extra}</div>`;
 const gearBtn = () => `<button class="icon-btn gear" data-act="settings" aria-label="Settings">${ic("gear")}<span id="sync" class="sync" role="status"></span></button>`;
-function whereSeg() { const where = lsGet("spotme.where", "gym"); return `<div class="seg" role="group" aria-label="Where you're training">${[["gym", "Gym", "dumbbell"], ["home", "Home", "home"]].map(([k, n, i]) => `<button data-act="where" data-w="${k}" aria-pressed="${where === k}">${ic(i)}<span class="t">${n}</span></button>`).join("")}</div>`; }
+function whereSeg() { const where = lsGet("spotme.where", "gym"); return `<div class="seg where-seg" role="group" aria-label="Where you're training">${[["gym", "Gym", "dumbbell"], ["home", "Home", "home"]].map(([k, n, i]) => `<button data-act="where" data-w="${k}" aria-pressed="${where === k}">${ic(i)}<span class="t">${n}</span></button>`).join("")}</div>`; }
 function vTrain() {
   const a = me(), act = activeWorkout(); let h = "";
   if (act) { const n = ["a", "b"].reduce((s, x) => s + volume(act, x).n, 0); h += `<div class="resume"><div><div class="eyebrow">Workout in progress</div><h3>${esc(catTitle(act))}</h3><div class="num" style="opacity:.75;font-size:.9rem"><span ${elapsedAttrs(act)}></span>${act.pausedAt ? " · Paused" : ""} · ${n} sets logged</div></div><a class="btn block" href="#workout">${ic("play")}Resume workout</a></div>`; }

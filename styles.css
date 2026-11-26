@@ -366,4 +366,4 @@ h2 .cat-ic{flex:none}
 .gear .sync{position:absolute;top:7px;right:7px;border:2px solid var(--bg)}
 .tabs a[aria-current="page"][data-tab="train"] svg.i{color:#d9a400} .tabs a[aria-current="page"][data-tab="badges"] svg.i{color:var(--pc-badges)} .tabs a[aria-current="page"][data-tab="history"] svg.i{color:var(--pc-history)} .tabs a[aria-current="page"][data-tab="progress"] svg.i{color:var(--pc-stats)} .tabs a[aria-current="page"][data-tab="library"] svg.i{color:var(--pc-moves)}
 @media (prefers-color-scheme:dark){.tabs a[aria-current="page"][data-tab="train"] svg.i{color:var(--pc-train)}}
-.sync-bar{position:sticky;top:var(--sat);z-index:25;background:var(--y-bg);color:var(--ink);font-size:.85rem;font-weight:600;text-align:center;padding:8px 16px;border-bottom:1px solid var(--line)}
+.sync-bar{position:sticky;top:var(--sat);z-index:25;background:var(--y-bg);color:var(--ink);font-size:.85rem;font-weight:600;text-align:center;padding:8px 16px;border-bottom:1px solid var(--line)}.where-seg{align-self:flex-end;width:auto}
