@@ -84,7 +84,7 @@ section{display:flex;flex-direction:column;gap:12px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:600;display:inline-flex;align-items:center;gap:7px;min-height:40px;font-size:.92rem}
 .chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
 .chips{display:flex;gap:7px;flex-wrap:wrap}
-.chip-scroll{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * var(--gr)) 0 calc(-1 * var(--gl));padding:0 var(--gr) 2px var(--gl)}
+.chip-scroll{display:flex;flex-wrap:wrap;gap:7px}
 .chip-scroll::-webkit-scrollbar{display:none}
 .chip-scroll .chip{white-space:nowrap}
 .segbar{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--sunk);border-radius:10px;padding:3px;gap:3px}
@@ -163,9 +163,9 @@ main.resting .actionbar{bottom:calc(var(--tabs) + var(--sab) + 64px)}
 .legend-row span{display:inline-flex;align-items:center;gap:5px}
 .sw{width:10px;height:10px;border-radius:50%;display:inline-block}
 .sw.g{background:var(--g)} .sw.y{background:var(--y)} .sw.r{background:var(--r)} .sw.l{border:1.5px dashed var(--muted)}
-.summary{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r10);padding:14px}
+.summary{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r10);padding:14px}
 .summary .big{font-family:var(--display);font-size:2.4rem;font-weight:700;line-height:1}
-.counts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin-top:10px}
 .counts div{display:flex;flex-direction:column;align-items:flex-start}
 .counts b{font-family:var(--display);font-size:1.35rem;line-height:1}
 .counts span{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:4px}

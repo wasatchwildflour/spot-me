@@ -38,11 +38,11 @@ const IC = {
   machine:'<rect x="4" y="3" width="10" height="18" rx="1"/><path d="M4 8h10M4 12h10M4 16h10M19 3v18M19 8h-5"/>',
   cable:'<path d="M4 3h16M12 3v4"/><circle cx="12" cy="9" r="2"/><path d="M12 11v6M8 20l4-3 4 3"/>',
   bodyweight:'<circle cx="12" cy="4.5" r="2"/><path d="M5 9h14M12 9v6M12 15l-4 6M12 15l4 6"/>',
-  legs:'<path d="M9 2v8l-2 6 1 6M15 2v8l2 6-1 6M9 10h6"/>',
-  chest:'<path d="M3 8c3-3 6-3 9 0 3-3 6-3 9 0v5c-3 3-6 3-9 0-3 3-6 3-9 0zM12 8v5"/>',
-  back:'<path d="M4 4l4 17h8l4-17M8 8l4 3 4-3M12 11v10"/>',
-  shoulders:'<circle cx="12" cy="5" r="2.5"/><path d="M3 19v-3a6 6 0 0 1 6-6h6a6 6 0 0 1 6 6v3"/>',
-  arms:'<path d="M4 20c0-6 2-10 6-12l2-4 3 1-1 4c3 0 6 2 6 6 0 3-3 5-7 5z"/>',
+  legs:'<path d="M3 7h18M4.5 5v4M19.5 5v4"/><circle cx="12" cy="4" r="1.8"/><path d="M12 7v5"/><path d="M12 12l-4.5 2 1.5 6.5M12 12l4.5 2-1.5 6.5"/><path d="M7.5 20.5h3M13.5 20.5h3"/>',
+  chest:'<path d="M2.5 6.5h19M4.5 4.5v4M19.5 4.5v4"/><path d="M8 6.5v3.5l1.5 2M16 6.5v3.5l-1.5 2"/><circle cx="12" cy="11.5" r="1.6"/><path d="M3 15h18M6 15v5M18 15v5"/>',
+  back:'<path d="M3 3.5h18"/><path d="M7 3.5l2.2 5.5M17 3.5l-2.2 5.5"/><circle cx="12" cy="7.5" r="2"/><path d="M8.5 11h7l-1.2 5.5h-4.6z"/><path d="M10 16.5l-.5 4.5M14 16.5l.5 4.5"/>',
+  shoulders:'<path d="M4 3.5h4.5M15.5 3.5H20"/><path d="M6.2 3.5v6.5l2.8 2M17.8 3.5v6.5l-2.8 2"/><circle cx="12" cy="8.5" r="2"/><path d="M9 12h6l-.8 4.5h-4.4z"/><path d="M10 16.5l-.5 4.5M14 16.5l.5 4.5"/>',
+  arms:'<path d="M4 19c0-5 2.5-8 5.5-9l1.5-4.5c.4-1 1.3-1.5 2.3-1.5H15l-.5 2.5-2 1 .8 3c3.5-1 6.7 1.2 6.7 4.5 0 3-2.8 5-6.5 5H6c-1.2 0-2-.8-2-1z"/><path d="M10 14.5c1.5 1 3.5 1 5-.5"/>',
   pause:'<path d="M8 5v14M16 5v14"/>',
   music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
   home:'<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/>',
@@ -52,7 +52,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 10; // keep in step with CACHE in sw.js
+const APP_VERSION = 11; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
