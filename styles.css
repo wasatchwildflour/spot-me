@@ -295,7 +295,7 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut
 .segbar button{display:flex;align-items:center;justify-content:center;gap:8px}
 .field label .av{margin-right:2px}
 /* Workout: whose sets are being logged */
-.who-tog{position:sticky;top:calc(var(--sat) + 63px);z-index:15;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;margin:0 0 14px;background:var(--sunk);border-radius:16px;box-shadow:0 4px 10px -6px rgba(0,0,0,.35)}
+.who-tog{position:sticky;top:calc(var(--sat) + 8px);z-index:15;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;margin:0 0 14px;background:var(--sunk);border-radius:16px;box-shadow:0 4px 10px -6px rgba(0,0,0,.35)}
 .who-tog button{display:flex;align-items:center;gap:10px;min-height:54px;padding:6px 10px;border:0;border-radius:12px;background:transparent;text-align:left;color:var(--muted);min-width:0}
 .who-tog button>span{display:flex;flex-direction:column;line-height:1.15;min-width:0}
 .who-tog button b{font-family:var(--display);font-size:1.15rem;letter-spacing:.03em;text-transform:uppercase}
@@ -353,3 +353,17 @@ h2 .cat-ic{flex:none}
 .warm-row .block{flex:1}
 .warm-t{font-family:var(--display);font-size:2.6rem;font-weight:700;line-height:1}
 .sec-h .seg{margin-left:auto}
+/* Page titles: big heading with a colored icon tile; the active tab icon wears the same color */
+:root{--pc-train:#f0bd1f;--pc-badges:#a77bf3;--pc-history:#4dabf7;--pc-stats:#2fbfab;--pc-moves:#f06595}
+.page-h{display:flex;align-items:center;gap:10px}
+.pt{font-size:2rem;display:flex;align-items:center;gap:12px;flex:1;min-width:0;line-height:1}
+.pt-ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:#fff;flex:none;box-shadow:0 3px 8px -3px rgba(0,0,0,.4)}
+.pt-ic svg.i{width:24px;height:24px;stroke-width:2.4;color:inherit}
+.pt-ic.train{background:var(--pc-train);color:#15181b} .pt-ic.badges{background:var(--pc-badges)} .pt-ic.history{background:var(--pc-history)} .pt-ic.stats{background:var(--pc-stats)} .pt-ic.moves{background:var(--pc-moves)}
+.page-h .hint{white-space:nowrap}
+.gear{position:relative;flex:none}
+.gear svg.i{width:24px;height:24px}
+.gear .sync{position:absolute;top:7px;right:7px;border:2px solid var(--bg)}
+.tabs a[aria-current="page"][data-tab="train"] svg.i{color:#d9a400} .tabs a[aria-current="page"][data-tab="badges"] svg.i{color:var(--pc-badges)} .tabs a[aria-current="page"][data-tab="history"] svg.i{color:var(--pc-history)} .tabs a[aria-current="page"][data-tab="progress"] svg.i{color:var(--pc-stats)} .tabs a[aria-current="page"][data-tab="library"] svg.i{color:var(--pc-moves)}
+@media (prefers-color-scheme:dark){.tabs a[aria-current="page"][data-tab="train"] svg.i{color:var(--pc-train)}}
+.sync-bar{position:sticky;top:var(--sat);z-index:25;background:var(--y-bg);color:var(--ink);font-size:.85rem;font-weight:600;text-align:center;padding:8px 16px;border-bottom:1px solid var(--line)}

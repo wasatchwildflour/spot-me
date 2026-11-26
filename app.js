@@ -44,6 +44,7 @@ const IC = {
   back:'<path d="M3 3.5h18"/><path d="M7 3.5l2.2 5.5M17 3.5l-2.2 5.5"/><circle cx="12" cy="7.5" r="2"/><path d="M8.5 11h7l-1.2 5.5h-4.6z"/><path d="M10 16.5l-.5 4.5M14 16.5l.5 4.5"/>',
   shoulders:'<path d="M4 3.5h4.5M15.5 3.5H20"/><path d="M6.2 3.5v6.5l2.8 2M17.8 3.5v6.5l-2.8 2"/><circle cx="12" cy="8.5" r="2"/><path d="M9 12h6l-.8 4.5h-4.4z"/><path d="M10 16.5l-.5 4.5M14 16.5l.5 4.5"/>',
   arms:'<path d="M4 19c0-5 2.5-8 5.5-9l1.5-4.5c.4-1 1.3-1.5 2.3-1.5H15l-.5 2.5-2 1 .8 3c3.5-1 6.7 1.2 6.7 4.5 0 3-2.8 5-6.5 5H6c-1.2 0-2-.8-2-1z"/><path d="M10 14.5c1.5 1 3.5 1 5-.5"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   heart:'<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
   cardio:'<path d="M3 12h4l2-5 3 10 2-5h7"/>',
   pause:'<path d="M8 5v14M16 5v14"/>',
@@ -55,7 +56,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 13; // keep in step with CACHE in sw.js
+const APP_VERSION = 14; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
@@ -305,14 +306,16 @@ function scheduleRender() { if (rq) return; rq = true; setTimeout(() => { rq = f
 document.addEventListener("focusout", () => setTimeout(() => { if (!deferRender) return; const ae = document.activeElement; if (!(ae && $("#main").contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName))) { deferRender = false; render(); } }, 0));
 
 function renderSync() {
-  const el = $("#sync"); if (!el) return; let c = "", t;
+  let c = "", t;
   if (Store.mode === "local") { c = "warn"; t = Store.failed ? "Couldn't reach the cloud; saving on this phone" : "Saving on this phone only"; }
   else if (Store.mode === "connecting") t = "Connecting";
   else if (Store.err) { c = "warn"; t = "Sync error: " + Store.err; }
   else if (Store.offline || !navigator.onLine) { c = "warn"; t = "Offline. Changes will sync when you reconnect"; }
   else if (Store.pendingWrites) t = "Syncing";
   else { c = "ok"; t = "Synced"; }
-  el.className = "sync " + c; el.setAttribute("aria-label", t); el.title = t;
+  const el = $("#sync"); if (el) { el.className = "sync " + c; el.setAttribute("aria-label", t); el.title = t; }
+  // Only problems get a banner; normal syncing just shows as the dot on the settings gear.
+  const bar = $("#syncBar"); if (bar) { bar.hidden = c !== "warn"; if (c === "warn") bar.textContent = t; }
 }
 function renderChrome() {
   const r = route(), act = activeWorkout();
@@ -334,19 +337,23 @@ function render() {
   const main = $("#main");
   main.innerHTML = `<div class="wrap stack">${h}</div>`;
   main.classList.toggle("has-bar", !!main.querySelector(".actionbar"));
+  renderSync(); // the sync dot lives inside the page now
   if (r === "progress") bindCharts();
   renderRest(); tick();
 }
 
 /* ================= Views ================= */
 // Gym/Home switch, shown only on the workout picker.
+// Page title: a colored icon tile + big heading. Colors live in styles.css as --pc-<page>.
+const pageTitle = (page, icon, text, extra = "") => `<div class="page-h"><h1 class="pt"><span class="pt-ic ${page}">${ic(icon)}</span>${esc(text)}</h1>${extra}</div>`;
+const gearBtn = () => `<button class="icon-btn gear" data-act="settings" aria-label="Settings">${ic("gear")}<span id="sync" class="sync" role="status"></span></button>`;
 function whereSeg() { const where = lsGet("spotme.where", "gym"); return `<div class="seg" role="group" aria-label="Where you're training">${[["gym", "Gym", "dumbbell"], ["home", "Home", "home"]].map(([k, n, i]) => `<button data-act="where" data-w="${k}" aria-pressed="${where === k}">${ic(i)}<span class="t">${n}</span></button>`).join("")}</div>`; }
 function vTrain() {
   const a = me(), act = activeWorkout(); let h = "";
   if (act) { const n = ["a", "b"].reduce((s, x) => s + volume(act, x).n, 0); h += `<div class="resume"><div><div class="eyebrow">Workout in progress</div><h3>${esc(catTitle(act))}</h3><div class="num" style="opacity:.75;font-size:.9rem"><span ${elapsedAttrs(act)}></span>${act.pausedAt ? " · Paused" : ""} · ${n} sets logged</div></div><a class="btn block" href="#workout">${ic("play")}Resume workout</a></div>`; }
   else if (state.plan) h += `<div class="resume"><div><div class="eyebrow">Planned</div><h3>${esc(CATS[state.plan.cat].n)}</h3><div style="opacity:.75;font-size:.9rem">${state.plan.items.length} exercises ready</div></div><a class="btn block" href="#plan">${ic("list")}Open plan</a></div>`;
   const sug = suggestCat(a);
-  h += `<section><div class="sec-h"><h2>${ic("bolt")}Pick a workout</h2>${whereSeg()}</div><div class="cats">` + CAT_ORDER.map(c => {
+  h += `<section>${pageTitle("train", "bolt", "Pick a workout", gearBtn())}${whereSeg()}<div class="cats">` + CAT_ORDER.map(c => {
     const cc = catCounts(a, c), tot = EX.filter(e => e.cat === c).length, last = catLast(a, c);
     const parts = []; if (cc.r) parts.push(`${cc.r} overdue`); if (cc.y) parts.push(`${cc.y} due`); if (cc.g) parts.push(`${cc.g} fresh`);
     return `<button class="cat${c === sug ? " next" : ""}" data-act="cat" data-c="${c}">${c === sug ? '<span class="flag">Up next</span>' : ""}<span class="ci">${catIcon(c, 44)}</span><span><b>${CATS[c].n}</b><div class="sub">${last ? "Last done " + agoText(last) : "Not done yet"} · ${tot} moves${parts.length ? "<br>" + parts.join(" · ") : ""}</div>
@@ -457,7 +464,7 @@ function vBadges() {
   const a = state.view; const all = { g: 0, y: 0, r: 0, l: 0 }; EX.forEach(e => all[badge(a, e.id).s]++);
   const earned = EX.length - all.l; const fresh = all.g;
   const big = { s: "g", frac: EX.length ? fresh / EX.length : 0 };
-  let h = `<section><div class="sec-h"><h2>${ic("medal")}Badges</h2></div>
+  let h = `<section>${pageTitle("badges", "medal", "Badges")}
   <div class="segbar" role="group" aria-label="Whose badges">${["a", "b"].map(x => `<button data-act="view" data-a="${x}" aria-pressed="${a === x}">${av(x)}${esc(nameOf(x))}</button>`).join("")}</div>
   <div class="summary">${ringSvgBig(big)}<div><div class="eyebrow">Fresh right now</div><div class="big num">${fresh}<span style="font-size:1.1rem;color:var(--muted)"> / ${EX.length}</span></div><div class="meta">${earned} earned all-time</div>
   <div class="counts">${[["g", "Fresh"], ["y", "Due"], ["r", "Overdue"], ["l", "Locked"]].map(([k, n]) => `<div><b class="num">${all[k]}</b><span><i class="sw ${k}"></i>${n}</span></div>`).join("")}</div></div></div>
@@ -484,9 +491,9 @@ function ringSvgBig(b) { const size = 84, sw = 9, r = (size - sw) / 2, C = 2 * M
 /* --- History --- */
 function vHistory() {
   const list = sorted().filter(w => w.finishedAt);
-  if (!list.length) return `<section><h2>${ic("calendar")}History</h2><div class="empty"><b>No finished workouts yet</b><span>Pick a workout on the Train tab, log your sets and tap Finish.</span><a class="btn primary" href="#train">Start training</a></div></section>`;
+  if (!list.length) return `<section>${pageTitle("history", "calendar", "History")}<div class="empty"><b>No finished workouts yet</b><span>Pick a workout on the Train tab, log your sets and tap Finish.</span><a class="btn primary" href="#train">Start training</a></div></section>`;
   const mode = state.histMode;
-  let h = `<section><div class="sec-h"><h2>${ic("calendar")}History</h2><span class="hint num">${list.length} workouts</span></div>
+  let h = `<section>${pageTitle("history", "calendar", "History", `<span class="hint num">${list.length} workouts</span>`)}
   <div class="segbar"><button data-act="hist-mode" data-m="cal" aria-pressed="${mode === "cal"}">${ic("calendar")}Calendar</button><button data-act="hist-mode" data-m="list" aria-pressed="${mode === "list"}">${ic("list")}List</button></div>`;
   if (mode === "cal") return h + vCal(list) + `</section>`;
   h += `<div class="hist">`; let month = "";
@@ -539,14 +546,14 @@ const charts = {};
 function vProgress() {
   const counts = {}; for (const w of sorted()) for (const [, e] of exList(w)) if (["a", "b"].some(a => workSets(e, a).length)) counts[e.id] = (counts[e.id] || 0) + 1;
   const ids = Object.keys(counts).sort((x, y) => counts[y] - counts[x]);
-  if (!ids.length) return `<section><h2>${ic("chart")}Stats</h2><div class="empty"><b>Charts appear after your first workout</b><span>Each exercise gets a strength trend, personal records and weekly volume for both of you.</span><a class="btn primary" href="#train">Start training</a></div></section>`;
+  if (!ids.length) return `<section>${pageTitle("stats", "chart", "Stats")}<div class="empty"><b>Charts appear after your first workout</b><span>Each exercise gets a strength trend, personal records and weekly volume for both of you.</span><a class="btn primary" href="#train">Start training</a></div></section>`;
   if (!state.progEx || !counts[state.progEx]) state.progEx = ids[0];
   const ex = EXM[state.progEx];
   const W = Math.max(280, Math.min(($("#main").clientWidth || 360) - 32 - 22, 520));
   const series = ["a", "b"].map(a => { const pts = []; for (const w of sorted().slice().reverse()) { let best = 0, bs = null; for (const [, e] of exList(w)) if (e.id === ex.id) for (const s of workSets(e, a)) { const m = metric(ex, s); if (m > best) { best = m; bs = s; } } if (best) pts.push({ x: w.startedAt, y: best, s: bs }); } return { a, name: nameOf(a), color: `var(--${a})`, pts }; }).filter(s => s.pts.length);
   const usesReps = !ex.time && !ex.cardio && series.every(s => s.pts.every(p => !(+p.s.w)));
   const label = ex.cardio ? "Longest session (minutes)" : ex.time ? "Longest hold (seconds)" : usesReps ? "Best reps in a set" : "Estimated 1-rep max (lb)";
-  let h = `<section><h2>${ic("chart")}Stats</h2><select class="select" id="progSel" aria-label="Exercise">${ids.map(id => `<option value="${id}"${id === ex.id ? " selected" : ""}>${esc(EXM[id].n)} (${counts[id]})</option>`).join("")}</select></section>`;
+  let h = `<section>${pageTitle("stats", "chart", "Stats")}<select class="select" id="progSel" aria-label="Exercise">${ids.map(id => `<option value="${id}"${id === ex.id ? " selected" : ""}>${esc(EXM[id].n)} (${counts[id]})</option>`).join("")}</select></section>`;
   h += `<section><div class="sec-h"><h3>${esc(label)}</h3><button class="btn small ghost" data-act="tbl">${state.showTable ? "Hide table" : "Show table"}</button></div>
   <div class="chart" id="c1"><div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>${lineChart("c1", series, W, v => fmtN(v))}</div>`;
   if (state.showTable) h += `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Who</th><th>Best set</th><th>${ex.cardio ? "Min" : usesReps ? "Reps" : ex.time ? "Sec" : "Est. 1RM"}</th></tr></thead><tbody>${series.flatMap(s => s.pts.map(p => ({ ...p, who: s.name }))).sort((x, y) => y.x - x.x).map(p => `<tr><td>${new Date(p.x).toLocaleDateString()}</td><td>${esc(p.who)}</td><td>${esc(fmtSet(ex, p.s))}</td><td>${fmtN(p.y)}</td></tr>`).join("")}</tbody></table></div>`;
@@ -610,7 +617,7 @@ function bindCharts() {
 function libFilter() { const q = state.libQ.toLowerCase(), c = state.libC; return EX.filter(e => (!c || e.cat === c) && (!q || e.n.toLowerCase().includes(q) || e.m.toLowerCase().includes(q) || EQ[e.eq].toLowerCase().includes(q) || CATS[e.cat].opts[e.opt].toLowerCase().includes(q))); }
 function libRows(list, pick) { return list.length ? list.map(e => { const b = badge(state.view, e.id); return `<button data-act="${pick ? "pick" : "howto"}" data-id="${e.id}"><span style="display:flex;gap:10px;align-items:center;min-width:0">${ringSvg(b, 26, 3.5, STATE_N[b.s])}<span style="min-width:0"><b>${esc(e.n)}</b><br><span class="meta">${esc(CATS[e.cat].n)} · ${esc(CATS[e.cat].opts[e.opt])}</span></span></span>${eqPill(e.eq)}</button>`; }).join("") : `<div class="notice">No exercises match. Try a muscle or equipment name.</div>`; }
 function vLibrary(pick, catOnly) {
-  return `<section>${pick ? "" : `<div class="sec-h"><h2>${ic("list")}Moves</h2><span class="hint num">${EX.length} exercises · tap for how-to</span></div>`}
+  return `<section>${pick ? "" : `${pageTitle("moves", "list", "Moves", `<span class="hint num">${EX.length} exercises</span>`)}<p class="meta" style="margin:0">Tap any exercise for how-to steps.</p>`}
   <input class="search" id="libQ" type="search" placeholder="Search: squat, cable, glutes…" value="${esc(state.libQ)}" aria-label="Search exercises" autocomplete="off">
   ${catOnly ? "" : `<div class="chip-scroll" role="group" aria-label="Filter by workout"><button class="chip" data-act="libc" data-c="" aria-pressed="${!state.libC}">All</button>${CAT_ORDER.map(c => `<button class="chip" data-act="libc" data-c="${c}" aria-pressed="${state.libC === c}">${mi(c)}${CATS[c].n}</button>`).join("")}</div>`}
   <div class="lib" id="libList">${libRows(libFilter(), pick)}</div></section>`;
@@ -817,6 +824,7 @@ document.addEventListener("click", ev => {
   switch (act) {
     case "close": closeSheet(); break;
     case "view": state.view = b.dataset.a; render(); break;
+    case "settings": settingsSheet(); break;
     case "warm-go": case "warm-pause": case "warm-x": case "warm-adj": warmAct(act, +b.dataset.d || 0); break;
     case "where": lsSet("spotme.where", b.dataset.w); if (p) { p.where = b.dataset.w; p.force = []; rebuildPlan(); } else render(); break;
     case "cat": state.plan = newPlan(b.dataset.c); savePlan(); go("plan"); break;
@@ -878,7 +886,7 @@ document.addEventListener("click", ev => {
     case "p-where": p.where = b.dataset.w; lsSet("spotme.where", p.where); p.force = []; rebuildPlan(); break;
   }
 });
-$("#gear").addEventListener("click", settingsSheet);
+
 document.addEventListener("input", ev => {
   const t = ev.target;
   if (t.id === "libQ") { state.libQ = t.value; refreshLib(); return; }
