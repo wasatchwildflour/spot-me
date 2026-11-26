@@ -1,7 +1,7 @@
 // Cartoon icons for the five workout groups: a lifter doing each group's signature
 // move on a colored circle. Built from a few shapes so they stay small and editable.
 const O = "#22262b", SK = "#f6c9a0", HAIR = "#4a3222", SHIRT = "#ffffff", SHORTS = "#2f3a4a", BAR = "#c9ced3", PLATE = "#ffd43b";
-export const CAT_COLORS = { back: "#2fbfab", legs: "#ff9f43", arms: "#a77bf3", chest: "#ff6b6b", shoulders: "#4dabf7" };
+export const CAT_COLORS = { back: "#2fbfab", legs: "#ff9f43", arms: "#a77bf3", chest: "#ff6b6b", shoulders: "#4dabf7", cardio: "#f06595" };
 
 const limb = (d, c = SK, w = 3.2) => `<path d="${d}" fill="none" stroke="${O}" stroke-width="${w + 2.2}" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
 const head = (x, y, r = 3.6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${SK}" stroke="${O}" stroke-width="1.2"/><path d="M${x - r} ${y - .2}A${r} ${r} 0 0 1 ${x + r} ${y - .2}Q${x} ${y - r * .75} ${x - r} ${y - .2}z" fill="${HAIR}" stroke="${O}" stroke-width="1" stroke-linejoin="round"/>`;
@@ -21,6 +21,8 @@ const FIG = {
   chest: `<path d="M7.5 23v5M24.5 23v5" stroke="${O}" stroke-width="2" stroke-linecap="round"/><rect x="5" y="20.5" width="22" height="3" rx="1.2" fill="#8a5a44" stroke="${O}" stroke-width="1.2"/>` + limb("M10 18.5 5.8 18.8", SHORTS) + limb("M5.8 18.8 5.4 27") + limb("M13 16.5V9.5") + limb("M19 16.5V9.5") + torso("M9.5 16h12.5a2.2 2.2 0 0 1 0 4.4H9.5z") + head(24.2, 16.4, 3) + bar(3.5, 28.5, 9) + plate(5.2, 9) + plate(26.8, 9),
   // Overhead dumbbell press
   shoulders: legsStand + limb("M11.8 15.5 8 12 8 5.8") + limb("M20.2 15.5 24 12 24 5.8") + torso("M11.5 14.5h9l-1.4 8h-6.2z") + head(16, 11) + bar(5.2, 10.8, 5.2) + plate(5.4, 5.2, 5, 2.2) + plate(10.6, 5.2, 5, 2.2) + bar(21.2, 26.8, 5.2) + plate(21.4, 5.2, 5, 2.2) + plate(26.6, 5.2, 5, 2.2),
+  // Running on a treadmill
+  cardio: limb("M25.5 25.5 27 14.5", BAR, 1.6) + `<rect x="4.5" y="24.5" width="22" height="3" rx="1.5" fill="${SHORTS}" stroke="${O}" stroke-width="1.2"/>` + limb("M14.2 12.8 10.6 15.6 12.2 18.4") + limb("M15.4 18.2 12.4 20.8", SHORTS) + limb("M12.4 20.8 9.2 22.2") + limb("M17.4 18 20.4 20.4", SHORTS) + limb("M20.4 20.4 19.4 24") + torso("M13.4 11.2h6.2l-1.6 7.4h-5.2z") + limb("M18.8 12.6 21.8 15.6 24.4 13.4") + head(17.6, 7.4, 3.3),
 };
 const cache = {};
 export const catIcon = (c, size = 40) => {

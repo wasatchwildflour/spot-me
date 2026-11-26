@@ -1,6 +1,6 @@
 // Offline support: app files are network-first (so updates show up), with the
 // cached copy used at the gym when there's no signal. Firebase SDK and fonts are cache-first.
-const CACHE = "spotme-v12";
+const CACHE = "spotme-v13";
 const SHELL = ["./", "index.html", "app.js", "exercises.js", "cat-icons.js", "config.js", "styles.css", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting())); });

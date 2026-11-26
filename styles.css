@@ -342,3 +342,14 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut
 .who-tog .last-set{font-size:.74rem;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .log-for{margin:-6px 2px 12px;font-size:.85rem}
 h2 .cat-ic{flex:none}
+
+/* Warm-up walk */
+.warm{margin-top:12px;padding:14px;border-radius:var(--r10);background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.warm-h{display:flex;align-items:center;gap:10px}
+.warm-h>div{flex:1}
+.warm-h b{font-family:var(--display);font-size:1.25rem;text-transform:uppercase;letter-spacing:.03em}
+.warm-ic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--hl);color:#15181b;flex:none}
+.warm-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.warm-row .block{flex:1}
+.warm-t{font-family:var(--display);font-size:2.6rem;font-weight:700;line-height:1}
+.sec-h .seg{margin-left:auto}

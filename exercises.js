@@ -5,10 +5,12 @@ export const CATS = {
   arms:      { n: "Arms",      opts: { biceps: "Biceps", triceps: "Triceps", forearms: "Forearms" } },
   chest:     { n: "Chest",     opts: { upper: "Upper", mid: "Middle", lower: "Lower", fly: "Flys" } },
   shoulders: { n: "Shoulders", opts: { front: "Front", side: "Side", rear: "Rear" } },
+  cardio:    { n: "Cardio",    opts: { steady: "Steady", hiit: "Intervals", climb: "Climb" } },
 };
-export const CAT_ORDER = ["back", "legs", "arms", "chest", "shoulders"];
-export const EQ = { barbell: "Barbell", dumbbell: "Dumbbells", machine: "Machine", cable: "Cable", bodyweight: "Bodyweight" };
-export const EQ_GROUPS = { free: { n: "Free weights", eq: ["barbell", "dumbbell"] }, machine: { n: "Machines", eq: ["machine"] }, cable: { n: "Cables", eq: ["cable"] }, bodyweight: { n: "Bodyweight", eq: ["bodyweight"] } };
+export const CAT_ORDER = ["back", "legs", "arms", "chest", "shoulders", "cardio"];
+export const LIFT_CATS = ["back", "legs", "arms", "chest", "shoulders"];
+export const EQ = { barbell: "Barbell", dumbbell: "Dumbbells", machine: "Machine", cable: "Cable", bodyweight: "Bodyweight", cardio: "Cardio machine" };
+export const EQ_GROUPS = { free: { n: "Free weights", eq: ["barbell", "dumbbell"] }, machine: { n: "Machines", eq: ["machine"] }, cable: { n: "Cables", eq: ["cable"] }, bodyweight: { n: "Bodyweight", eq: ["bodyweight"] }, cardio: { n: "Cardio machines", eq: ["cardio"] } };
 // Home gym equipment. Placeholder until the real home equipment list is added.
 export const HOME_EQ = ["dumbbell", "bodyweight"];
 export const WHERE = {
@@ -17,6 +19,7 @@ export const WHERE = {
   machine: "The selectorized or plate-loaded machine lines. Set the seat and pads before your first set.",
   cable: "Any cable column or crossover station. Set the pulley height and attachment first.",
   bodyweight: "Open turf, a pull-up/dip station, or the stretching area.",
+  cardio: "The cardio floor: treadmills, bikes, rowers, ellipticals and stair climbers.",
 };
 
 export const EX = [];
@@ -276,5 +279,50 @@ X("seated-calf","Seated Calf Raise","legs","calves","machine","i","Calves (soleu
 X("lp-calf","Leg Press Calf Raise","legs","calves","machine","i","Calves",
 ["Sit in the leg press with the balls of your feet on the bottom edge of the platform.","Keep legs straight but not locked, safeties on.","Push the platform with your toes, then let your heels come back for a stretch."],
 ["Keep the safety handles engaged","Slow and full range"],"Bending the knees to help.");
+
+/* ============ CARDIO ============ */
+// Cardio is logged as minutes (r) with an optional level/speed (w). lo/hi = target minutes.
+X("tm-incline","Incline Treadmill Walk","cardio","climb","cardio","c","Heart, glutes, calves",
+["Set the incline between 8 and 12 and a speed you can walk, around 2.5 to 3.5 mph.","Stand tall and let go of the handrails.","Take normal steps and keep a steady pace.","Lower the incline for the last couple of minutes to cool down."],
+["Hands off the rails","Breathing hard but able to talk"],"Holding the rails and leaning back, which takes the work away.",{cardio:1,lo:15,hi:30});
+X("stairmaster","Stair Climber","cardio","climb","cardio","c","Heart, glutes, quads",
+["Start at a level you can keep for the whole session.","Step through your whole foot, not just your toes.","Stand upright and lightly touch the rails for balance only."],
+["Upright posture","Steady rhythm"],"Leaning on the rails with your arms.",{cardio:1,lo:10,hi:20});
+X("tm-run","Treadmill Run","cardio","steady","cardio","c","Heart, legs",
+["Walk for a minute, then raise the speed to an easy jog.","Settle into a pace where you could talk in short sentences.","Land under your hips with short, quick steps."],
+["Relaxed shoulders","1% incline feels closer to running outside"],"Overstriding and slamming your heels.",{cardio:1,lo:15,hi:30});
+X("bike","Stationary Bike","cardio","steady","cardio","c","Heart, quads",
+["Set the seat so your knee is slightly bent at the bottom of the pedal stroke.","Pick a resistance you can hold for the whole ride.","Keep a smooth cadence around 80 to 90 rpm."],
+["Seat height first","Push and pull through the stroke"],"A seat so low your knees come up high.",{cardio:1,lo:15,hi:30});
+X("elliptical","Elliptical","cardio","steady","cardio","c","Heart, full body",
+["Step on and hold the moving handles.","Push and pull the handles as your legs move.","Keep a steady pace at a resistance you can hold."],
+["Drive through your heels","Use your arms too"],"Bouncing on your toes.",{cardio:1,lo:15,hi:30});
+X("rower","Rowing Machine","cardio","steady","cardio","c","Heart, back, legs",
+["Strap your feet in and grab the handle with straight arms.","Push with your legs, then lean back slightly, then pull the handle to your ribs.","Return in reverse: arms, body, then knees."],
+["Legs, body, arms","Damper around 3 to 5"],"Pulling with your arms before your legs have pushed.",{cardio:1,lo:10,hi:20});
+X("outdoor-run","Run or Brisk Walk Outside","cardio","steady","bodyweight","c","Heart, legs",
+["Start with a few minutes of easy walking.","Settle into a run or brisk walk you can keep going.","Finish with a few minutes of easy walking."],
+["Conversational pace","Short, light steps"],"Starting too fast and fading early.",{cardio:1,lo:15,hi:40});
+X("tm-sprints","Treadmill Sprints","cardio","hiit","cardio","c","Heart, legs",
+["Warm up with 3 to 5 minutes of easy jogging.","Run hard for 20 to 30 seconds.","Walk or straddle the belt for 60 to 90 seconds.","Repeat 6 to 10 times, then cool down."],
+["Straddle the belt to rest","Only as fast as you can run safely"],"Jumping on or off a fast-moving belt.",{cardio:1,lo:12,hi:20});
+X("bike-sprints","Bike Sprints","cardio","hiit","cardio","c","Heart, quads",
+["Warm up for 3 minutes at an easy pace.","Sprint hard for 20 to 30 seconds with high resistance.","Pedal easy for 60 seconds.","Repeat 6 to 10 times, then cool down."],
+["An air bike works great here","All-out on the sprints, truly easy on the rests"],"Going medium-hard the whole time.",{cardio:1,lo:12,hi:20});
+X("row-intervals","Rower Intervals","cardio","hiit","cardio","c","Heart, back, legs",
+["Warm up with 3 minutes of easy rowing.","Row hard for 250 meters or 1 minute.","Row easy for 1 minute.","Repeat 5 to 8 times."],
+["Power comes from the legs","Keep good form when tired"],"Rounding your back when tired.",{cardio:1,lo:12,hi:20});
+X("jump-rope","Jump Rope","cardio","hiit","bodyweight","c","Heart, calves, shoulders",
+["Hold the handles at hip height with elbows close to your sides.","Turn the rope with your wrists and jump just high enough to clear it.","Go for 30 to 60 seconds, rest 30 seconds, and repeat."],
+["Small jumps on the balls of your feet","Wrists turn the rope, not your arms"],"Jumping too high or landing flat-footed.",{cardio:1,lo:10,hi:20});
+X("burpees","Burpee Intervals","cardio","hiit","bodyweight","c","Heart, full body",
+["Squat down and put your hands on the floor.","Jump or step your feet back to a plank.","Bring your feet back in and stand or jump up.","Work 30 seconds, rest 30 seconds."],
+["Step back instead of jumping if you need to","Keep a steady pace"],"Letting your hips sag in the plank.",{cardio:1,lo:8,hi:15});
+X("mtn-climbers","Mountain Climbers and High Knees","cardio","hiit","bodyweight","c","Heart, core, hips",
+["Do 30 seconds of mountain climbers: plank position, driving one knee at a time toward your chest.","Stand and do 30 seconds of high knees.","Rest 30 seconds and repeat."],
+["Hips level in the plank","Pump your arms on high knees"],"Hips piking up high.",{cardio:1,lo:8,hi:15});
+X("step-climb","Stairs or Step-Up Climb","cardio","climb","bodyweight","c","Heart, glutes, quads",
+["Use a flight of stairs or a sturdy step.","Climb at a steady pace, pushing through your whole foot.","Walk back down and repeat."],
+["Drive through the heel","Use a rail for balance if you have one"],"Pushing off the bottom foot instead of the top one.",{cardio:1,lo:10,hi:20});
 
 export const EXM = Object.fromEntries(EX.map(e => [e.id, e]));
