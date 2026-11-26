@@ -1,5 +1,6 @@
 import { CATS, CAT_ORDER, EQ, EQ_GROUPS, HOME_EQ, WHERE, EX, EXM } from "./exercises.js";
 import { firebaseConfig } from "./config.js";
+import { catIcon } from "./cat-icons.js";
 
 /* ================= Icons ================= */
 const IC = {
@@ -52,7 +53,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 11; // keep in step with CACHE in sw.js
+const APP_VERSION = 12; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
@@ -336,7 +337,7 @@ function vTrain() {
   h += `<section><div class="sec-h"><h2>${ic("bolt")}Pick a workout</h2></div><div class="cats">` + CAT_ORDER.map(c => {
     const cc = catCounts(a, c), tot = EX.filter(e => e.cat === c).length, last = catLast(a, c);
     const parts = []; if (cc.r) parts.push(`${cc.r} overdue`); if (cc.y) parts.push(`${cc.y} due`); if (cc.g) parts.push(`${cc.g} fresh`);
-    return `<button class="cat${c === sug ? " next" : ""}" data-act="cat" data-c="${c}">${c === sug ? '<span class="flag">Up next</span>' : ""}<span class="ci">${ic(c)}</span><span><b>${CATS[c].n}</b><div class="sub">${last ? "Last done " + agoText(last) : "Not done yet"} · ${tot} moves${parts.length ? "<br>" + parts.join(" · ") : ""}</div>
+    return `<button class="cat${c === sug ? " next" : ""}" data-act="cat" data-c="${c}">${c === sug ? '<span class="flag">Up next</span>' : ""}<span class="ci">${catIcon(c, 44)}</span><span><b>${CATS[c].n}</b><div class="sub">${last ? "Last done " + agoText(last) : "Not done yet"} · ${tot} moves${parts.length ? "<br>" + parts.join(" · ") : ""}</div>
     <div class="fbar" aria-hidden="true">${["g", "y", "r", "l"].map(k => cc[k] ? `<i class="${k}" style="flex:${cc[k]}"></i>` : "").join("")}</div></span><span class="chev">${ic("chev")}</span></button>`;
   }).join("") + `</div></section>`;
   h += `<button class="btn block" data-act="playlist">${ic("music")}Suggest a Spotify playlist</button>`;
@@ -353,7 +354,7 @@ function vPlan() {
   const p = state.plan; if (!p) return vTrain();
   const C = CATS[p.cat];
   let h = `<section><div class="row" style="justify-content:space-between"><button class="btn ghost small" data-act="cancel-plan" style="padding-left:0">${ic("backArrow")}Back</button></div>
-  <div class="row" style="gap:12px"><span class="ci" style="width:48px;height:48px;border-radius:12px;background:var(--sunk);display:grid;place-items:center">${ic(p.cat)}</span><h1>${C.n} day</h1></div></section>
+  <div class="row" style="gap:12px">${catIcon(p.cat, 52)}<h1>${C.n} day</h1></div></section>
   <section><div class="label">${mi("timer")}How many exercises</div><div class="segbar">${[3, 4, 5, 6, 7].map(n => `<button data-act="p-n" data-n="${n}" aria-pressed="${p.n === n}">${n}</button>`).join("")}</div>
   <div class="label">${mi("users")}Who's lifting</div><div class="chips">${["a", "b"].map(a => `<button class="chip" data-act="p-who" data-a="${a}" aria-pressed="${p.athletes.includes(a)}">${av(a)}${esc(nameOf(a))}</button>`).join("")}</div></section>`;
   h += `<section><div class="sec-h"><h2>${ic("list")}Today's moves</h2><span class="hint">Due and overdue badges are picked first</span></div>`;
@@ -447,7 +448,7 @@ function vBadges() {
   for (const c of CAT_ORDER) {
     const list = EX.filter(e => e.cat === c).map(e => ({ e, b: badge(a, e.id) })).filter(x => state.bFilter === "all" || x.b.s === state.bFilter);
     const complete = Object.keys(CATS[c].opts).every(o => optState(a, c, o) === "g");
-    h += `<section class="cat-block"><div class="sec-h"><h2>${ic(c)}${CATS[c].n}</h2>${complete ? `<span class="crown">${mi("crown")}Complete</span>` : `<span class="hint">${list.length} shown</span>`}</div>
+    h += `<section class="cat-block"><div class="sec-h"><h2>${catIcon(c, 28)}${CATS[c].n}</h2>${complete ? `<span class="crown">${mi("crown")}Complete</span>` : `<span class="hint">${list.length} shown</span>`}</div>
     <div class="opt-row">${Object.entries(CATS[c].opts).map(([o, n]) => { const s = optState(a, c, o); return `<span class="opt ${s}">${s === "g" ? mi("check") : ""}${esc(n)}</span>`; }).join("")}</div>`;
     h += list.length ? `<div class="bgrid">${list.map(({ e, b }) => {
       const st = b.s === "l" ? "Not yet" : b.s === "g" ? (b.d === 0 ? "Today" : b.d + "d ago") : b.s === "y" ? "Due · " + b.d + "d" : "Overdue";

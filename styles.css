@@ -104,8 +104,8 @@ section{display:flex;flex-direction:column;gap:12px}
 .cats{display:flex;flex-direction:column;gap:10px}
 .cat{position:relative;display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;text-align:left;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--r10);padding:12px 12px 12px 12px}
 .cat:active{background:var(--sunk)}
-.cat .ci{width:52px;height:52px;border-radius:12px;background:var(--sunk);display:grid;place-items:center}
-.cat .ci svg{width:28px;height:28px}
+.cat .ci{width:52px;height:52px;display:grid;place-items:center}
+.cat .ci svg.cat-ic{width:50px;height:50px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
 .cat b{font-family:var(--display);font-size:1.45rem;text-transform:uppercase;line-height:1}
 .cat .sub{font-size:.83rem;color:var(--muted);margin-top:3px}
 .cat .chev{color:var(--muted)}
@@ -341,3 +341,4 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut
 
 .who-tog .last-set{font-size:.74rem;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .log-for{margin:-6px 2px 12px;font-size:.85rem}
+h2 .cat-ic{flex:none}
