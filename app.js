@@ -52,6 +52,8 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
+const APP_VERSION = 6; // keep in step with CACHE in sw.js
+
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -621,7 +623,7 @@ function settingsSheet() {
   <div class="grid2"><button class="btn" data-act="copy-invite">${ic("copy")}Copy link</button><button class="btn" data-act="join-other">${ic("link")}Join another</button></div>` : `<div class="notice">Cloud sync isn't set up in this copy of the app, so workouts are saved on this phone only.</div>`}
   <h3>${ic("download")}Backup</h3>
   <div class="grid2"><button class="btn" data-act="export">${ic("download")}Export</button><label class="btn" for="importFile">${ic("upload")}Import</label></div><input type="file" id="importFile" accept="application/json,.json" hidden>
-  <p class="meta" style="margin:0">Spot Me · ${EX.length} exercises</p>`);
+  <p class="meta" style="margin:0">Spot Me version ${APP_VERSION} · ${EX.length} exercises</p>`);
   if (cloud) drawQR();
 }
 // The invite names who it's for (the other person), so the partner's phone opens as them.
@@ -839,4 +841,12 @@ Store.init().then(() => {
   else if (!lsGet("spotme.onboarded", false) || (Store.mode === "cloud" && !Store.hid)) startLog(lsGet("spotme.me", "a"));
   render();
 });
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+// Updates: check for a new version whenever the app comes back to the screen, and
+// reload once the new version takes over (after saving anything still pending).
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  const hadSW = !!navigator.serviceWorker.controller; let reloading = false;
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!hadSW || reloading) return; reloading = true; try { Store.flushAll(); } catch (e) {} setTimeout(() => location.reload(), 400); });
+}
