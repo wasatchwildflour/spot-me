@@ -338,3 +338,6 @@ th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut
 .pl-card>span:last-child{display:flex;flex-direction:column}
 .pl-ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#1db954;color:#fff;flex:none}
 .segbar.where{margin-bottom:4px}.pl-embed{width:100%;border:0;border-radius:12px;display:block;background:var(--sunk)}
+
+.who-tog .last-set{font-size:.74rem;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-for{margin:-6px 2px 12px;font-size:.85rem}

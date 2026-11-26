@@ -52,7 +52,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 7; // keep in step with CACHE in sw.js
+const APP_VERSION = 8; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
@@ -122,6 +122,7 @@ const Store = {
     this.unsubs.push(F.onSnapshot(F.collection(this.db, "households", this.hid, "workouts"), { includeMetadataChanges: true }, snap => {
       const next = {};
       snap.docs.forEach(d => { const data = d.data(); data.id = d.id; next[d.id] = this.pending[d.id] ? deepMerge(data, clone(this.pending[d.id])) : data; });
+      if (this.loaded) announceRemoteSets(this.workouts, next);
       this.workouts = next; this.pendingWrites = snap.metadata.hasPendingWrites; this.offline = snap.metadata.fromCache && !navigator.onLine;
       this.loaded = true; this.err = null; this.bump(); renderSync();
     }, err => { this.err = err.code; this.loaded = true; renderSync(); toast("Couldn't load the shared log (" + err.code + ")."); }));
@@ -160,6 +161,24 @@ const Store = {
   },
   fail(e) { console.error(e); toast(e && e.code === "permission-denied" ? "Sync was refused. Check the Firestore rules." : "Couldn't save to the cloud. It will retry when you're back online."); },
 };
+
+// Sets logged on the other phone arrive through the snapshot. Our own sets are already in
+// `prev` (patch updates locally first), so anything new here came from the other phone.
+function announceRemoteSets(prev, next) {
+  const news = [];
+  for (const id in next) {
+    const w = next[id], p = prev[id]; if (!w || w.finishedAt || !w.ex) continue;
+    for (const k in w.ex) for (const a of ["a", "b"]) {
+      const done = l => ((l && l[a]) || []).filter(s => s && s.d).length;
+      const nl = (w.ex[k].log || {})[a] || [];
+      if (done(w.ex[k].log) > done(p && p.ex && p.ex[k] && p.ex[k].log)) { const s = nl.filter(x => x && x.d).sort((x, y) => (x.t || 0) - (y.t || 0)).pop(); const ex = EXM[w.ex[k].id]; if (ex && s) news.push(`${nameOf(a)} logged ${ex.n} ${s.w != null ? fmtW(s.w) + " × " : ""}${s.r != null ? s.r : ""}`); }
+    }
+  }
+  if (news.length) { toast(news.slice(-2).join(" · ")); try { navigator.vibrate && navigator.vibrate(20); } catch (e) {} }
+}
+const me = () => lsGet("spotme.me", "a");
+// Most recent finished set for a person in a workout, for the "last:" line on the toggle.
+function lastSet(w, a) { let best = null; for (const [, e] of exList(w)) for (const s of ((e.log && e.log[a]) || [])) if (s && s.d && (!best || (s.t || 0) >= (best.s.t || 0))) best = { s, ex: EXM[e.id] }; return best; }
 
 /* ================= Derived data ================= */
 const S = () => Store.settings;
@@ -285,7 +304,7 @@ function renderChrome() {
   const where = lsGet("spotme.where", "gym");
   $("#viewSeg").innerHTML = [["gym", "Gym", "dumbbell"], ["home", "Home", "home"]].map(([k, n, i]) => `<button data-act="where" data-w="${k}" aria-pressed="${where === k}">${ic(i)}<span class="t">${n}</span></button>`).join("");
   const r = route(), act = activeWorkout();
-  const red = EX.filter(e => badge(state.view, e.id).s === "r").length;
+  const red = EX.filter(e => badge(me(), e.id).s === "r").length;
   document.querySelectorAll("#tabs a").forEach(a => {
     const t = a.dataset.tab; const on = t === r || (t === "train" && (r === "plan" || r === "workout"));
     a.setAttribute("aria-current", on ? "page" : "false");
@@ -309,7 +328,7 @@ function render() {
 
 /* ================= Views ================= */
 function vTrain() {
-  const a = state.view, act = activeWorkout(); let h = "";
+  const a = me(), act = activeWorkout(); let h = "";
   if (act) { const n = ["a", "b"].reduce((s, x) => s + volume(act, x).n, 0); h += `<div class="resume"><div><div class="eyebrow">Workout in progress</div><h3>${esc(catTitle(act))}</h3><div class="num" style="opacity:.75;font-size:.9rem"><span ${elapsedAttrs(act)}></span>${act.pausedAt ? " · Paused" : ""} · ${n} sets logged</div></div><a class="btn block" href="#workout">${ic("play")}Resume workout</a></div>`; }
   else if (state.plan) h += `<div class="resume"><div><div class="eyebrow">Planned</div><h3>${esc(CATS[state.plan.cat].n)}</h3><div style="opacity:.75;font-size:.9rem">${state.plan.items.length} exercises ready</div></div><a class="btn block" href="#plan">${ic("list")}Open plan</a></div>`;
   const sug = suggestCat(a);
@@ -359,13 +378,14 @@ function vWorkout() {
   const w = activeWorkout(); if (!w) return vTrain();
   const ath = w.athletes || ["a"];
   // Log one person at a time; the toggle switches whose sets are shown.
-  if (!ath.includes(state.logWho)) state.logWho = ath.includes(state.view) ? state.view : ath[0];
+  if (!ath.includes(state.logWho)) state.logWho = ath.includes(me()) ? me() : ath[0];
   const cur = state.logWho;
   const paused = !!w.pausedAt;
   let h = `<section><div class="wo-head"><div><div class="eyebrow">${new Date(w.startedAt).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}${w.where === "home" ? " · Home" : ""}</div><h1>${esc(catTitle(w))}</h1></div><div class="clock num${paused ? " paused" : ""}" ${elapsedAttrs(w)}></div></div>
   <div class="row wo-tools">${paused ? `<button class="btn small primary" data-act="unpause">${ic("play")}Resume</button>` : `<button class="btn small" data-act="pause">${ic("pause")}Pause</button>`}<button class="btn small" data-act="playlist" data-c="${w.focus}">${ic("music")}Playlist</button></div>
   ${paused ? `<div class="paused-note">${ic("pause")}<span><b>Workout paused.</b> The clock is stopped. Tap Resume when you're back.</span></div>` : ""}</section>
-  <div class="who-tog${ath.length > 1 ? "" : " solo"}" role="group" aria-label="Whose sets to log">${ath.map(a => { const v = volume(w, a); return `<button data-act="log-who" data-a="${a}" aria-pressed="${a === cur}">${av(a, 34)}<span><b>${esc(nameOf(a))}</b><span class="num">${v.n} set${v.n === 1 ? "" : "s"} · ${fmtN(v.v)} lb</span></span></button>`; }).join("")}</div><section>`;
+  <div class="who-tog${ath.length > 1 ? "" : " solo"}" role="group" aria-label="Whose sets to log">${ath.map(a => { const v = volume(w, a), l = lastSet(w, a); return `<button data-act="log-who" data-a="${a}" aria-pressed="${a === cur}">${av(a, 34)}<span><b>${esc(nameOf(a))}</b><span class="num">${v.n} set${v.n === 1 ? "" : "s"} · ${fmtN(v.v)} lb</span>${l ? `<span class="last-set num">${esc(l.ex.n)} ${l.s.w != null ? fmtW(l.s.w) + "×" : ""}${l.s.r != null ? esc(l.s.r) : ""}</span>` : ""}</span></button>`; }).join("")}</div>
+  ${ath.length > 1 ? `<p class="meta log-for">Logging for <b>${esc(nameOf(cur))}</b>${cur !== me() ? " (from your phone)" : ""}. Tap the other name to log theirs. Sets show up on both phones.</p>` : ""}<section>`;
   for (const [k, e] of exList(w)) {
     const ex = EXM[e.id];
     h += `<div class="ex" id="ex-${k}"><div class="ex-h"><div class="grow"><button class="ex-name" data-act="howto" data-id="${ex.id}">${esc(ex.n)}</button><div class="ex-tags">${eqPill(ex.eq)}<span class="pill">${esc(CATS[ex.cat].opts[ex.opt])}</span></div></div><button class="icon-btn" data-act="howto" data-id="${ex.id}" aria-label="How to do ${esc(ex.n)}">${ic("info")}</button></div>`;
@@ -416,7 +436,8 @@ function vBadges() {
   const a = state.view; const all = { g: 0, y: 0, r: 0, l: 0 }; EX.forEach(e => all[badge(a, e.id).s]++);
   const earned = EX.length - all.l; const fresh = all.g;
   const big = { s: "g", frac: EX.length ? fresh / EX.length : 0 };
-  let h = `<section><div class="sec-h"><h2>${ic("medal")}Badges</h2><span class="hint">${esc(nameOf(a))}</span></div>
+  let h = `<section><div class="sec-h"><h2>${ic("medal")}Badges</h2></div>
+  <div class="segbar" role="group" aria-label="Whose badges">${["a", "b"].map(x => `<button data-act="view" data-a="${x}" aria-pressed="${a === x}">${av(x)}${esc(nameOf(x))}</button>`).join("")}</div>
   <div class="summary">${ringSvgBig(big)}<div><div class="eyebrow">Fresh right now</div><div class="big num">${fresh}<span style="font-size:1.1rem;color:var(--muted)"> / ${EX.length}</span></div><div class="meta">${earned} earned all-time</div>
   <div class="counts">${[["g", "Fresh"], ["y", "Due"], ["r", "Overdue"], ["l", "Locked"]].map(([k, n]) => `<div><b class="num">${all[k]}</b><span><i class="sw ${k}"></i>${n}</span></div>`).join("")}</div></div></div>
   <div class="legend-row"><span><i class="sw g"></i>Done in the last ${S().yellow} days</span><span><i class="sw y"></i>${S().yellow}–${S().red - 1} days</span><span><i class="sw r"></i>${S().red}+ days</span></div>
@@ -616,6 +637,7 @@ function settingsSheet() {
   <button class="btn primary block" data-act="save-settings">${ic("check")}Save</button>
   <h3>${ic("link")}Partner sync</h3>
   ${cloud ? `<p class="meta" style="margin:0">Open this invite on ${esc(nameOf(me === "a" ? "b" : "a"))}'s phone (scan the code or send the link). Both phones then share one log.</p>
+  <p class="meta" style="margin:0">This phone's log code: <b class="num">${esc((Store.hid || "").slice(0, 6).toUpperCase())}</b>. If both phones show the same code, they're sharing.</p>
   <div class="qr" id="qr"><span class="meta">Loading code…</span></div>
   <div class="code" id="inviteLink">${esc(inviteLink())}</div>
   <div class="grid2"><button class="btn" data-act="copy-invite">${ic("copy")}Copy link</button><button class="btn" data-act="join-other">${ic("link")}Join another</button></div>` : `<div class="notice">Cloud sync isn't set up in this copy of the app, so workouts are saved on this phone only.</div>`}
@@ -740,6 +762,7 @@ document.addEventListener("click", ev => {
   const act = b.dataset.act, w = activeWorkout(), p = state.plan;
   switch (act) {
     case "close": closeSheet(); break;
+    case "view": state.view = b.dataset.a; render(); break;
     case "where": lsSet("spotme.where", b.dataset.w); if (p) { p.where = b.dataset.w; p.force = []; rebuildPlan(); } else render(); break;
     case "cat": state.plan = newPlan(b.dataset.c); savePlan(); go("plan"); break;
     case "plan-with": { const e = EXM[b.dataset.id]; closeSheet(); if (activeWorkout()) { toast("Finish the current workout first."); break; } state.plan = newPlan(e.cat, e.id); savePlan(); go("plan"); break; }
@@ -761,7 +784,7 @@ document.addEventListener("click", ev => {
     case "libc": state.libC = b.dataset.c; if (sheetCtx && sheetCtx.lib) { $("#sheetIn").querySelectorAll('[data-act="libc"]').forEach(c => c.setAttribute("aria-pressed", c.dataset.c === state.libC)); refreshLib(); } else render(); break;
     case "done": { if (!w) break; const { k, a } = b.dataset, i = +b.dataset.i, log = logOf(w, k, a), st = log[i]; if (!st) break;
       const wi = document.getElementById(`w-${k}-${a}-${i}`), ri = document.getElementById(`r-${k}-${a}-${i}`); if (wi) st.w = numOrNull(wi.value); if (ri) st.r = numOrNull(ri.value);
-      st.d = !st.d;
+      st.d = !st.d; if (st.d) st.t = Date.now(); else delete st.t;
       if (st.d) { const ex = EXM[w.ex[k].id]; if (st.r == null) { const prev = log.slice(0, i).reverse().find(s => s.r != null); st.r = prev ? prev.r : target(ex, a).lo; } if (log[i + 1] && log[i + 1].w == null && st.w != null) log[i + 1].w = st.w; if (!st.wu) startRest(S().rest); try { navigator.vibrate && navigator.vibrate(30); } catch (e) {} }
       setLog(w, k, a, log, 250); render(); break; }
     case "wu": { if (!w) break; const { k, a } = b.dataset, i = +b.dataset.i, log = logOf(w, k, a); log[i].wu = !log[i].wu; setLog(w, k, a, log); render(); break; }
