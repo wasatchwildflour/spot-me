@@ -52,7 +52,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 8; // keep in step with CACHE in sw.js
+const APP_VERSION = 9; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
@@ -284,6 +284,7 @@ if (state.plan && (!state.plan.cat || !CATS[state.plan.cat])) state.plan = null;
 const savePlan = () => lsSet("spotme.plan", state.plan);
 const ROUTES = ["train", "plan", "workout", "badges", "history", "progress", "library"];
 const route = () => { const h = (location.hash || "").slice(1); return ROUTES.includes(h) ? h : "train"; };
+if (state.plan && route() !== "plan") { state.plan = null; savePlan(); }
 function go(r) { if (location.hash !== "#" + r) location.hash = r; else render(); window.scrollTo(0, 0); }
 
 let rq = false, deferRender = false;
@@ -842,7 +843,8 @@ document.addEventListener("change", async ev => {
   }
 });
 document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !$("#sheet").hidden) closeSheet(); if (ev.key === "Enter" && ev.target.dataset && ev.target.dataset.f) ev.target.blur(); });
-window.addEventListener("hashchange", () => { const j = parseJoin(location.hash); if (j) { handleJoin(j, joinWho(location.hash)); return; } state.confirmDiscard = false; render(); window.scrollTo(0, 0); if (route() === "workout" && activeWorkout()) keepAwake(true); });
+window.addEventListener("hashchange", () => { const j = parseJoin(location.hash); if (j) { handleJoin(j, joinWho(location.hash)); return; } state.confirmDiscard = false;
+  if (route() !== "plan" && state.plan) { state.plan = null; savePlan(); } /* leaving the plan screen any way (Back, tabs, swipe) drops the plan */ render(); window.scrollTo(0, 0); if (route() === "workout" && activeWorkout()) keepAwake(true); });
 let rsT; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { if (route() === "progress") render(); }, 200); });
 window.addEventListener("pagehide", () => Store.flushAll());
 
