@@ -52,7 +52,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 6; // keep in step with CACHE in sw.js
+const APP_VERSION = 7; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
@@ -253,14 +253,14 @@ function buildPlan(p) {
 }
 function newPlan(cat, force) {
   const prefs = lsGet("spotme.prefs." + cat, null);
-  const opts = prefs && prefs.opts && prefs.opts.length ? prefs.opts.filter(o => CATS[cat].opts[o]) : Object.keys(CATS[cat].opts);
-  const p = { cat, opts: opts.length ? opts : Object.keys(CATS[cat].opts), eqs: (prefs && prefs.eqs && prefs.eqs.length) ? prefs.eqs : Object.keys(EQ_GROUPS), n: (prefs && prefs.n) || 5, athletes: (prefs && prefs.athletes) || ["a", "b"], salt: 0, force: force ? [force] : [], where: lsGet("spotme.where", "gym") };
+  // Every focus area and all equipment (or the home list); the plan screen no longer filters these.
+  const p = { cat, opts: Object.keys(CATS[cat].opts), eqs: Object.keys(EQ_GROUPS), n: (prefs && prefs.n) || 5, athletes: (prefs && prefs.athletes) || ["a", "b"], salt: 0, force: force ? [force] : [], where: lsGet("spotme.where", "gym") };
   p.items = buildPlan(p); return p;
 }
 const alternatives = (id, exclude, where) => { const ex = EXM[id]; return EX.filter(e => e.id !== id && e.cat === ex.cat && !(exclude || []).includes(e.id) && (where !== "home" || HOME_EQ.includes(e.eq))).sort((x, y) => (x.opt === ex.opt ? 0 : 1) - (y.opt === ex.opt ? 0 : 1) || (x.t === ex.t ? 0 : 1) - (y.t === ex.t ? 0 : 1)); };
 
 /* ================= App state & routing ================= */
-const state = { view: lsGet("spotme.view", lsGet("spotme.me", "a")), plan: lsGet("spotme.plan", null), openHist: null, confirmDel: null, confirmDiscard: false, libQ: "", libC: "", progEx: null, showTable: false, rest: null, bFilter: "all", histMode: lsGet("spotme.histMode", "cal"), calMonth: null, calDay: null };
+const state = { view: lsGet("spotme.me", "a"), plan: lsGet("spotme.plan", null), openHist: null, confirmDel: null, confirmDiscard: false, libQ: "", libC: "", progEx: null, showTable: false, rest: null, bFilter: "all", histMode: lsGet("spotme.histMode", "cal"), calMonth: null, calDay: null };
 if (state.plan && (!state.plan.cat || !CATS[state.plan.cat])) state.plan = null;
 const savePlan = () => lsSet("spotme.plan", state.plan);
 const ROUTES = ["train", "plan", "workout", "badges", "history", "progress", "library"];
@@ -282,7 +282,8 @@ function renderSync() {
   el.className = "sync " + c; el.setAttribute("aria-label", t); el.title = t;
 }
 function renderChrome() {
-  $("#viewSeg").innerHTML = ["a", "b"].map(a => `<button data-act="view" data-a="${a}" aria-pressed="${state.view === a}">${av(a)}<span class="t">${esc(nameOf(a))}</span></button>`).join("");
+  const where = lsGet("spotme.where", "gym");
+  $("#viewSeg").innerHTML = [["gym", "Gym", "dumbbell"], ["home", "Home", "home"]].map(([k, n, i]) => `<button data-act="where" data-w="${k}" aria-pressed="${where === k}">${ic(i)}<span class="t">${n}</span></button>`).join("");
   const r = route(), act = activeWorkout();
   const red = EX.filter(e => badge(state.view, e.id).s === "r").length;
   document.querySelectorAll("#tabs a").forEach(a => {
@@ -333,10 +334,7 @@ function vPlan() {
   const C = CATS[p.cat];
   let h = `<section><div class="row" style="justify-content:space-between"><button class="btn ghost small" data-act="cancel-plan" style="padding-left:0">${ic("backArrow")}Back</button></div>
   <div class="row" style="gap:12px"><span class="ci" style="width:48px;height:48px;border-radius:12px;background:var(--sunk);display:grid;place-items:center">${ic(p.cat)}</span><h1>${C.n} day</h1></div></section>
-  <section><div class="segbar where"><button data-act="p-where" data-w="gym" aria-pressed="${p.where !== "home"}">${ic("dumbbell")}Gym</button><button data-act="p-where" data-w="home" aria-pressed="${p.where === "home"}">${ic("home")}Home</button></div>
-  <div class="label">${mi("list")}Focus on</div><div class="chips">${Object.entries(C.opts).map(([k, n]) => `<button class="chip" data-act="p-opt" data-k="${k}" aria-pressed="${p.opts.includes(k)}">${esc(n)}</button>`).join("")}</div>
-  ${p.where === "home" ? `<div class="label">${mi("home")}Home equipment</div><div class="chips">${HOME_EQ.map(eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`).join("")}</div><div class="meta">A shorter list for home. The full home equipment list can be added later.</div>` : `<div class="label">${mi("barbell")}Equipment</div><div class="chips">${Object.entries(EQ_GROUPS).map(([k, g]) => `<button class="chip" data-act="p-eq" data-k="${k}" aria-pressed="${p.eqs.includes(k)}">${mi(g.eq[0])}${g.n}</button>`).join("")}</div>`}
-  <div class="label">${mi("timer")}How many exercises</div><div class="segbar">${[3, 4, 5, 6, 7].map(n => `<button data-act="p-n" data-n="${n}" aria-pressed="${p.n === n}">${n}</button>`).join("")}</div>
+  <section><div class="label">${mi("timer")}How many exercises</div><div class="segbar">${[3, 4, 5, 6, 7].map(n => `<button data-act="p-n" data-n="${n}" aria-pressed="${p.n === n}">${n}</button>`).join("")}</div>
   <div class="label">${mi("users")}Who's lifting</div><div class="chips">${["a", "b"].map(a => `<button class="chip" data-act="p-who" data-a="${a}" aria-pressed="${p.athletes.includes(a)}">${av(a)}${esc(nameOf(a))}</button>`).join("")}</div></section>`;
   h += `<section><div class="sec-h"><h2>${ic("list")}Today's moves</h2><span class="hint">Due and overdue badges are picked first</span></div>`;
   h += p.items.map((id, i) => {
@@ -742,7 +740,7 @@ document.addEventListener("click", ev => {
   const act = b.dataset.act, w = activeWorkout(), p = state.plan;
   switch (act) {
     case "close": closeSheet(); break;
-    case "view": state.view = b.dataset.a; lsSet("spotme.view", state.view); render(); break;
+    case "where": lsSet("spotme.where", b.dataset.w); if (p) { p.where = b.dataset.w; p.force = []; rebuildPlan(); } else render(); break;
     case "cat": state.plan = newPlan(b.dataset.c); savePlan(); go("plan"); break;
     case "plan-with": { const e = EXM[b.dataset.id]; closeSheet(); if (activeWorkout()) { toast("Finish the current workout first."); break; } state.plan = newPlan(e.cat, e.id); savePlan(); go("plan"); break; }
     case "cancel-plan": state.plan = null; savePlan(); go("train"); break;
