@@ -666,41 +666,37 @@ function summarySheet(w) {
 }
 
 /* ================= Playlist ideas ================= */
-// Opens a Spotify playlist search, so results stay current without an API key.
+// Real Spotify playlists (IDs checked against Spotify on 2026-11-25). Each opens directly.
 const PLAYLISTS = [
-  { n: "Beast Mode", q: "beast mode workout", v: "Hard-hitting hip hop and trap" },
-  { n: "Heavy Metal Lifting", q: "metal gym", v: "Loud riffs for heavy sets" },
-  { n: "Pop Workout", q: "pop workout", v: "Upbeat chart hits" },
-  { n: "EDM Gym", q: "edm gym", v: "Big drops, steady tempo" },
-  { n: "Rock Workout Classics", q: "classic rock workout", v: "AC/DC-era energy" },
-  { n: "90s Hip Hop Workout", q: "90s hip hop workout", v: "Boom bap throwbacks" },
-  { n: "Throwback Workout", q: "2000s workout throwback", v: "2000s sing-alongs" },
-  { n: "Country Workout", q: "country workout", v: "Upbeat country" },
-  { n: "Latin Workout", q: "reggaeton workout", v: "Reggaeton and Latin pop" },
-  { n: "Phonk Gym", q: "phonk gym", v: "Dark, bass-heavy phonk" },
-  { n: "Drum and Bass Gym", q: "drum and bass gym", v: "Fast breaks for conditioning" },
-  { n: "Indie Workout", q: "indie workout", v: "Bright indie and alt" },
-  { n: "Rap Gym", q: "rap gym motivation", v: "New-school rap" },
-  { n: "Pump Up Rock", q: "hard rock pump up", v: "Modern hard rock" },
-  { n: "Leg Day", q: "leg day", v: "Loud enough for squats", c: "legs" },
-  { n: "Back Day", q: "back day gym", v: "Pull-day anthems", c: "back" },
-  { n: "Chest Day", q: "chest day", v: "Bench-press hype", c: "chest" },
-  { n: "Arm Day Pump", q: "arm day pump", v: "Pump-chasing playlist", c: "arms" },
-  { n: "Shoulder Day", q: "shoulder day gym", v: "Press-day energy", c: "shoulders" },
-  { n: "Home Workout", q: "home workout", v: "Good for the garage or living room", home: true },
+  { n: "Beast Mode", id: "37i9dQZF1DX76Wlfdnj7AP", v: "Hip hop for heavy sets" },
+  { n: "Beast Mode Hip-Hop", id: "37i9dQZF1DX9oh43oAzkyx", v: "High-energy rap" },
+  { n: "Workout", id: "37i9dQZF1DX70RN3TfWWJh", v: "Pop hits" },
+  { n: "Power Workout", id: "37i9dQZF1DWUVpAXiEPK8P", v: "High-intensity mix" },
+  { n: "Gym Hits", id: "37i9dQZF1DXdxcBWuJkbcy", v: "Made for lifting" },
+  { n: "Heavy Workout", id: "37i9dQZF1DXe6bgV3TmZOL", v: "Aggressive rock and metal" },
+  { n: "Energy Booster: Rock", id: "37i9dQZF1DWZVAVMhIe3pV", v: "Upbeat rock" },
+  { n: "Kickass Metal", id: "37i9dQZF1DWTcqUzwhNmKv", v: "Current metal" },
+  { n: "Get Turnt", id: "37i9dQZF1DWY4xHQp97fN6", v: "Trap and rap" },
+  { n: "Workout Twerkout", id: "37i9dQZF1DX0HRj9P7NxeE", v: "Hip hop and R&B" },
+  { n: "Locked In", id: "37i9dQZF1DWTl4y3vgJOXW", v: "Game-day hype" },
+  { n: "Pumped Pop", id: "37i9dQZF1DX5gQonLbZD9s", v: "Uptempo pop" },
+  { n: "Hype", id: "37i9dQZF1DX4eRPd9frC1m", v: "Trap and bass" },
+  { n: "Cardio", id: "37i9dQZF1DWSJHnPb1f0X3", v: "Dance pop" },
+  { n: "Walk Like A Badass", id: "37i9dQZF1DX1tyCD9QhIWF", v: "Big riffs and drums" },
+  { n: "VOLUME", id: "37i9dQZF1DWWJOmJ7nRx0C", v: "New rock" },
+  { n: "mint", id: "37i9dQZF1DX4dyzvuaRJ0n", v: "Dance and electronic" },
+  { n: "Rock Classics", id: "37i9dQZF1DWXRqgorJj26U", v: "Classic rock" },
+  { n: "Hot Country", id: "37i9dQZF1DX1lVhptIYRda", v: "Current country" },
+  { n: "Baila Reggaeton", id: "37i9dQZF1DWY7IeIP1cdjF", v: "Reggaeton" },
 ];
-function playlistSheet(cat) {
-  // Prefer a category or home playlist about a third of the time, never the same one twice in a row.
-  const special = PLAYLISTS.filter(p => (cat && p.c === cat) || (p.home && (activeWorkout() || {}).where === "home"));
-  let pick;
-  do { pick = special.length && Math.random() < .35 ? special[Math.floor(Math.random() * special.length)] : PLAYLISTS[Math.floor(Math.random() * PLAYLISTS.length)]; } while (PLAYLISTS.length > 1 && pick === state.lastPlaylist);
+function playlistSheet() {
+  // Never the same one twice in a row.
+  let pick; do { pick = PLAYLISTS[Math.floor(Math.random() * PLAYLISTS.length)]; } while (pick === state.lastPlaylist);
   state.lastPlaylist = pick;
-  const url = "https://open.spotify.com/search/" + encodeURIComponent(pick.q) + "/playlists";
-  openSheet(`<div class="sheet-top"><div><div class="eyebrow">Playlist idea</div><h2>${esc(pick.n)}</h2></div>${closeBtn}</div>
-  <div class="pl-card"><span class="pl-ic">${ic("music")}</span><span><b>${esc(pick.n)}</b><span class="meta">${esc(pick.v)}</span></span></div>
-  <a class="btn primary block" href="${url}" target="_blank" rel="noopener">${ic("ext")}Find it on Spotify</a>
-  <button class="btn block" data-act="playlist" data-c="${esc(cat)}">${ic("shuffle")}Suggest another</button>
-  <p class="meta" style="margin:0;text-align:center">Opens Spotify's playlist search for "${esc(pick.q)}".</p>`);
+  openSheet(`<div class="sheet-top"><div><div class="eyebrow">Try this playlist</div><h2>${esc(pick.n)}</h2><div class="meta">${esc(pick.v)}</div></div>${closeBtn}</div>
+  <iframe class="pl-embed" src="https://open.spotify.com/embed/playlist/${pick.id}?utm_source=generator&theme=0" height="352" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" title="${esc(pick.n)} on Spotify"></iframe>
+  <a class="btn primary block" href="https://open.spotify.com/playlist/${pick.id}" target="_blank" rel="noopener">${ic("ext")}Open in Spotify</a>
+  <button class="btn block" data-act="playlist">${ic("shuffle")}Suggest another</button>`);
 }
 
 /* ================= Rest timer ================= */
@@ -800,7 +796,7 @@ document.addEventListener("click", ev => {
     case "cal-day": state.calDay = b.dataset.d; state.openHist = null; state.confirmDel = null; render(); break;
     case "pause": if (!w || w.pausedAt) break; Store.patch(w.id, { pausedAt: Date.now() }, 0); state.rest = null; keepAwake(false); render(); break;
     case "unpause": if (!w || !w.pausedAt) break; Store.patch(w.id, { pausedAt: null, pausedMs: (w.pausedMs || 0) + (Date.now() - w.pausedAt) }, 0); keepAwake(true); render(); break;
-    case "playlist": playlistSheet(b.dataset.c || (w && w.focus) || ""); break;
+    case "playlist": playlistSheet(); break;
     case "p-where": p.where = b.dataset.w; lsSet("spotme.where", p.where); p.force = []; rebuildPlan(); break;
   }
 });
