@@ -52,7 +52,7 @@ const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n] |
 const mi = n => `<svg class="mi" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ""}</svg>`;
 const eqPill = eq => `<span class="pill">${mi(eq)}${EQ[eq]}</span>`;
 
-const APP_VERSION = 9; // keep in step with CACHE in sw.js
+const APP_VERSION = 10; // keep in step with CACHE in sw.js
 
 /* ================= Utils ================= */
 const $ = s => document.querySelector(s);
@@ -333,7 +333,7 @@ function vTrain() {
   if (act) { const n = ["a", "b"].reduce((s, x) => s + volume(act, x).n, 0); h += `<div class="resume"><div><div class="eyebrow">Workout in progress</div><h3>${esc(catTitle(act))}</h3><div class="num" style="opacity:.75;font-size:.9rem"><span ${elapsedAttrs(act)}></span>${act.pausedAt ? " · Paused" : ""} · ${n} sets logged</div></div><a class="btn block" href="#workout">${ic("play")}Resume workout</a></div>`; }
   else if (state.plan) h += `<div class="resume"><div><div class="eyebrow">Planned</div><h3>${esc(CATS[state.plan.cat].n)}</h3><div style="opacity:.75;font-size:.9rem">${state.plan.items.length} exercises ready</div></div><a class="btn block" href="#plan">${ic("list")}Open plan</a></div>`;
   const sug = suggestCat(a);
-  h += `<section><div class="sec-h"><h2>${ic("bolt")}Pick a workout</h2><span class="hint">for ${esc(nameOf(a))}</span></div><div class="cats">` + CAT_ORDER.map(c => {
+  h += `<section><div class="sec-h"><h2>${ic("bolt")}Pick a workout</h2></div><div class="cats">` + CAT_ORDER.map(c => {
     const cc = catCounts(a, c), tot = EX.filter(e => e.cat === c).length, last = catLast(a, c);
     const parts = []; if (cc.r) parts.push(`${cc.r} overdue`); if (cc.y) parts.push(`${cc.y} due`); if (cc.g) parts.push(`${cc.g} fresh`);
     return `<button class="cat${c === sug ? " next" : ""}" data-act="cat" data-c="${c}">${c === sug ? '<span class="flag">Up next</span>' : ""}<span class="ci">${ic(c)}</span><span><b>${CATS[c].n}</b><div class="sub">${last ? "Last done " + agoText(last) : "Not done yet"} · ${tot} moves${parts.length ? "<br>" + parts.join(" · ") : ""}</div>
